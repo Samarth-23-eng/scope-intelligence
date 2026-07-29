@@ -8,7 +8,7 @@ pypdf==6.14.2
 python-jobspy @ https://github.com/speedyapply/JobSpy/archive/fda080a373e8226f3fd60635323f5da9af9892b1.zip
 qdrant-client[fastembed]==1.10.0
 psycopg2-binary==2.9.9
-redis==5.0.1
+redis==8.0.1
 openai==1.40.0
 python-dotenv==1.2.2
 fastapi==0.140.13
