@@ -12,6 +12,8 @@ versioning where practical.
 - Provider-neutral shared LLM gateway with encrypted BYOK storage.
 - Model Connections dashboard for cloud, local, and OpenAI-compatible models.
 
+## [0.1.1] — 2026-07-29
+
 ### Security
 
 - Upgraded vulnerable Python and dashboard dependencies, including the PDF
@@ -41,5 +43,6 @@ versioning where practical.
 - Multi-page Next.js operator workspace with evidence, intelligence,
   relationships, research, reports, operations, and model settings.
 
-[Unreleased]: https://github.com/Samarth-23-eng/osint-platform/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Samarth-23-eng/osint-platform/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Samarth-23-eng/osint-platform/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Samarth-23-eng/osint-platform/releases/tag/v0.1.0
