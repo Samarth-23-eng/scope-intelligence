@@ -1,0 +1,50 @@
+name: Source adapter proposal
+description: Propose a new public source or official API integration
+title: "[Source]: "
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Source
+      placeholder: Public feed, website, or official API name
+    validations:
+      required: true
+  - type: dropdown
+    id: access
+    attributes:
+      label: Access method
+      options:
+        - Official API
+        - RSS or Atom feed
+        - Public unauthenticated web pages
+        - Public downloadable dataset
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Intelligence value
+      description: What evidence would this source add?
+    validations:
+      required: true
+  - type: textarea
+    id: policy
+    attributes:
+      label: Terms, robots, and rate limits
+      description: Link to relevant policies and describe safe collection budgets.
+    validations:
+      required: true
+  - type: textarea
+    id: provenance
+    attributes:
+      label: Provenance model
+      description: Explain canonical URLs, timestamps, source identity, deduplication, and failure reporting.
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Safety
+      options:
+        - label: The proposal does not automate an account or bypass access controls.
+          required: true

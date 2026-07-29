@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a product, research, or platform improvement
+title: "[Feature]: "
+body:
+  - type: checkboxes
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and the roadmap.
+          required: true
+        - label: This proposal does not require bypassing authentication, CAPTCHAs, paywalls, or access controls.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or research problem should the project solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the workflow, expected outcome, and alternatives considered.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and provenance impact
+      description: Explain how outputs remain attributable, reviewable, and evidence-grounded.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Security, privacy, and source-policy considerations
+      description: Identify data retention, authentication, abuse, and source-policy risks.
+    validations:
+      required: true

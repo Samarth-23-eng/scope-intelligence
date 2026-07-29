@@ -1,0 +1,100 @@
+[
+  {
+    "name": "valid evidence citation",
+    "collection_key": "signals",
+    "statement_key": "signal",
+    "allowed_evidence_ids": [31],
+    "allowed_chunk_ids": [71],
+    "maximum_items": 3,
+    "allowed_values": {"severity": ["high", "medium", "low"]},
+    "payload": {
+      "signals": [
+        {
+          "signal": "The company is expanding engineering hiring.",
+          "severity": "high",
+          "evidence_ids": [31],
+          "chunk_ids": []
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "valid chunk citation",
+    "collection_key": "claims",
+    "statement_key": "statement",
+    "allowed_evidence_ids": [],
+    "allowed_chunk_ids": [72],
+    "maximum_items": 8,
+    "allowed_values": {},
+    "payload": {
+      "claims": [
+        {
+          "statement": "A new product page was published.",
+          "evidence_ids": [],
+          "chunk_ids": [72]
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "invented evidence id",
+    "collection_key": "signals",
+    "statement_key": "signal",
+    "allowed_evidence_ids": [31],
+    "allowed_chunk_ids": [71],
+    "maximum_items": 3,
+    "allowed_values": {"severity": ["high", "medium", "low"]},
+    "payload": {
+      "signals": [
+        {
+          "signal": "Unsupported expansion.",
+          "severity": "high",
+          "evidence_ids": [999],
+          "chunk_ids": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "missing citation",
+    "collection_key": "predictions",
+    "statement_key": "prediction",
+    "allowed_evidence_ids": [31],
+    "allowed_chunk_ids": [71],
+    "maximum_items": 5,
+    "allowed_values": {},
+    "payload": {
+      "predictions": [
+        {
+          "prediction": "The company will enter another market.",
+          "evidence_ids": [],
+          "chunk_ids": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "invalid controlled value",
+    "collection_key": "signals",
+    "statement_key": "signal",
+    "allowed_evidence_ids": [31],
+    "allowed_chunk_ids": [],
+    "maximum_items": 3,
+    "allowed_values": {"severity": ["high", "medium", "low"]},
+    "payload": {
+      "signals": [
+        {
+          "signal": "Hiring activity increased.",
+          "severity": "urgent",
+          "evidence_ids": [31],
+          "chunk_ids": []
+        }
+      ]
+    },
+    "valid": false
+  }
+]

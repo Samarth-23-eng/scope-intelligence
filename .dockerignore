@@ -1,0 +1,13 @@
+.git
+.env*
+.secrets
+*.key
+*.pem
+.venv
+**/__pycache__
+**/*.pyc
+dashboard
+tests
+logs
+errors
+docs/*.docx
