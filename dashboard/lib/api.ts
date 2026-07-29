@@ -40,6 +40,11 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
 
+async function apiError(response: Response): Promise<Error> {
+  const payload = await response.json().catch(() => null) as { detail?: string } | null;
+  return new Error(payload?.detail ?? `API error: ${response.status} ${response.statusText}`);
+}
+
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = new Headers(options?.headers);
@@ -53,8 +58,7 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
   });
 
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { detail?: string } | null;
-    throw new Error(payload?.detail ?? `API error: ${response.status} ${response.statusText}`);
+    throw await apiError(response);
   }
 
   return response.json();
@@ -509,7 +513,7 @@ export async function generateReport(id: number): Promise<Blob> {
   });
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+    throw await apiError(response);
   }
 
   return response.blob();

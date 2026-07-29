@@ -176,9 +176,10 @@ def _create_styles():
         borderPadding=5,
     ))
     
-    # Body text style
+    # The sample stylesheet already owns ``BodyText``. Use a report-specific
+    # name so ReportLab does not reject the stylesheet during generation.
     styles.add(ParagraphStyle(
-        name='BodyText',
+        name='ReportBody',
         parent=styles['Normal'],
         fontSize=10,
         spaceAfter=8,
@@ -252,11 +253,11 @@ def _build_pdf(
     if summary:
         story.append(Paragraph(
             f"<b>Confidence Level:</b> {int(summary['confidence'] * 100)}%",
-            styles['BodyText']
+            styles['ReportBody']
         ))
         story.append(Paragraph(
             f"<b>Analysis Date:</b> {summary['created_at'].strftime('%B %d, %Y')}",
-            styles['BodyText']
+            styles['ReportBody']
         ))
         story.append(Spacer(1, 10))
         
@@ -264,12 +265,12 @@ def _build_pdf(
         summary_text = summary['summary']
         for paragraph in summary_text.split('\n\n'):
             if paragraph.strip():
-                story.append(Paragraph(paragraph.strip(), styles['BodyText']))
+                story.append(Paragraph(paragraph.strip(), styles['ReportBody']))
                 story.append(Spacer(1, 5))
     else:
         story.append(Paragraph(
             "No executive summary available. Run the analysis pipeline to generate insights.",
-            styles['BodyText']
+            styles['ReportBody']
         ))
     
     story.append(PageBreak())
@@ -294,7 +295,7 @@ def _build_pdf(
             table_data.append([
                 signal['signal_type'],
                 signal['severity'].upper(),
-                Paragraph(signal['description'][:100] + ('...' if len(signal['description']) > 100 else ''), styles['BodyText']),
+                Paragraph(signal['description'][:100] + ('...' if len(signal['description']) > 100 else ''), styles['ReportBody']),
                 detected,
             ])
         
@@ -317,7 +318,7 @@ def _build_pdf(
     else:
         story.append(Paragraph(
             "No strategic signals detected yet.",
-            styles['BodyText']
+            styles['ReportBody']
         ))
     
     story.append(PageBreak())
@@ -333,25 +334,25 @@ def _build_pdf(
             
             story.append(Paragraph(
                 f"<b>Prediction {i}</b> ({pred['timeframe']})",
-                styles['BodyText']
+                styles['ReportBody']
             ))
             story.append(Paragraph(
                 f"Confidence: {confidence_pct}%",
-                styles['BodyText']
+                styles['ReportBody']
             ))
             story.append(Paragraph(
                 pred['prediction'],
-                styles['BodyText']
+                styles['ReportBody']
             ))
             story.append(Paragraph(
                 f"<i>Generated: {created}</i>",
-                styles['BodyText']
+                styles['ReportBody']
             ))
             story.append(Spacer(1, 15))
     else:
         story.append(Paragraph(
             "No predictions available yet.",
-            styles['BodyText']
+            styles['ReportBody']
         ))
     
     story.append(PageBreak())
@@ -389,7 +390,7 @@ def _build_pdf(
             timeline_data.append([
                 date_str,
                 event['type'],
-                Paragraph(event['description'], styles['BodyText']),
+                Paragraph(event['description'], styles['ReportBody']),
             ])
         
         timeline_table = Table(timeline_data, colWidths=[1.5*inch, 0.8*inch, 4.2*inch])
@@ -411,7 +412,7 @@ def _build_pdf(
     else:
         story.append(Paragraph(
             "No timeline events available.",
-            styles['BodyText']
+            styles['ReportBody']
         ))
     
     # Footer
@@ -474,8 +475,11 @@ def generate_competitor_report(competitor_id: int) -> Optional[str]:
         logger.info(f"Report generated: {result_path}")
         return result_path
         
-    except Exception as e:
-        logger.error(f"Failed to generate report for competitor {competitor_id}: {e}")
+    except Exception:
+        logger.exception(
+            "Failed to generate report for competitor %s",
+            competitor_id,
+        )
         return None
 
 

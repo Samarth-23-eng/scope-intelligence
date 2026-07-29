@@ -41,3 +41,10 @@ def test_secure_report_path_never_uses_an_untrusted_parent(monkeypatch, tmp_path
 
     assert resolved == trusted_report
     assert resolved.parent == reports_root
+
+
+def test_report_styles_use_a_unique_body_style():
+    styles = pdf_generator._create_styles()
+
+    assert "ReportBody" in styles
+    assert styles["ReportBody"].parent is styles["Normal"]

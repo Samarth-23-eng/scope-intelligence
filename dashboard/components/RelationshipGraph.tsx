@@ -26,6 +26,12 @@ const WIDTH = 920;
 const HEIGHT = 560;
 const CENTER_X = WIDTH / 2;
 const CENTER_Y = HEIGHT / 2;
+const UI_GLYPHS = {
+  ellipsis: '\u2026',
+  separator: '\u00b7',
+  arrow: '\u2192',
+  explore: '\u2197',
+} as const;
 
 const ENTITY_COLORS: Record<string, string> = {
   company: '#5b8def',
@@ -58,7 +64,9 @@ const EDGE_COLORS: Record<string, string> = {
 };
 
 function truncateLabel(value: string, maximum = 22) {
-  return value.length > maximum ? `${value.slice(0, maximum - 1)}…` : value;
+  return value.length > maximum
+    ? `${value.slice(0, maximum - 1)}${UI_GLYPHS.ellipsis}`
+    : value;
 }
 
 function formatRelationship(value: string) {
@@ -286,7 +294,7 @@ export function RelationshipGraph({
                     type="button"
                     onClick={() => selectNode(node.entity_id)}
                     className="rounded-full border border-blue-400/20 bg-blue-400/5 px-3 py-1.5 text-xs text-blue-200 hover:border-blue-300/50"
-                    title={`${node.degree} connections · rank ${node.page_rank.toFixed(3)}`}
+                    title={`${node.degree} connections ${UI_GLYPHS.separator} rank ${node.page_rank.toFixed(3)}`}
                   >
                     {node.name}
                   </button>
@@ -306,8 +314,9 @@ export function RelationshipGraph({
                   : `No duplicate identity candidates detected across ${intelligence.metrics.alias_count ?? 0} aliases.`}
               </p>
               <p className="mt-1 text-xs text-gray-600">
-                {intelligence.component_count} graph components · {intelligence.weak_relationships} weak
-                edges · {intelligence.disputed_relationships} disputed edges
+                {intelligence.component_count} graph components {' '}
+                {UI_GLYPHS.separator} {intelligence.weak_relationships} weak edges {' '}
+                {UI_GLYPHS.separator} {intelligence.disputed_relationships} disputed edges
               </p>
             </div>
           </div>
@@ -549,7 +558,9 @@ export function RelationshipGraph({
                 </div>
                 <h3 className="text-lg font-semibold text-white">
                   {selectedRelationship.source_name}
-                  <span className="text-gray-600 mx-2" aria-hidden="true">→</span>
+                  <span className="text-gray-600 mx-2" aria-hidden="true">
+                    {UI_GLYPHS.arrow}
+                  </span>
                   {selectedRelationship.target_name}
                 </h3>
                 <div className="mt-2 text-sm text-gray-400">
@@ -631,7 +642,8 @@ export function RelationshipGraph({
                             </p>
                           )}
                           <div className="mt-2 text-[11px] text-gray-600">
-                            {Math.round(evidence.confidence * 100)}% source confidence ·{' '}
+                            {Math.round(evidence.confidence * 100)}% source confidence {' '}
+                            {UI_GLYPHS.separator}{' '}
                             {new Date(evidence.collected_at).toLocaleDateString()}
                           </div>
                         </a>
@@ -665,12 +677,14 @@ export function RelationshipGraph({
                         {relationship.source_entity_id === selectedNode.id
                           ? 'Outgoing'
                           : 'Incoming'}
-                        {' · '}
+                        {' '}{UI_GLYPHS.separator}{' '}
                         {formatRelationship(relationship.relationship_type)}
                       </div>
                       <div className="mt-1 text-sm text-white">
                         {relationship.source_name}
-                        <span className="text-gray-600 mx-2" aria-hidden="true">→</span>
+                        <span className="text-gray-600 mx-2" aria-hidden="true">
+                          {UI_GLYPHS.arrow}
+                        </span>
                         {relationship.target_name}
                       </div>
                     </button>
@@ -680,7 +694,7 @@ export function RelationshipGraph({
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <div className="w-12 h-12 rounded-full bg-[#5b8def]/10 flex items-center justify-center text-[#5b8def] text-xl mb-4">
-                  ↗
+                  {UI_GLYPHS.explore}
                 </div>
                 <h3 className="text-lg font-medium text-white">Explore the network</h3>
                 <p className="mt-2 text-sm text-gray-500 max-w-xs">
@@ -747,7 +761,9 @@ export function RelationshipGraph({
                   >
                     <td className="px-5 py-3 text-white">
                       {relationship.source_name}
-                      <span className="text-gray-600 mx-2" aria-hidden="true">→</span>
+                      <span className="text-gray-600 mx-2" aria-hidden="true">
+                        {UI_GLYPHS.arrow}
+                      </span>
                       {relationship.target_name}
                     </td>
                     <td className="px-5 py-3 text-gray-400">

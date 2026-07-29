@@ -49,6 +49,7 @@ services:
     volumes:
       - model_cache:/app/.cache
       - llm_secrets:/app/.secrets
+      - reports_data:/app/reports/generated
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
       interval: 15s
@@ -79,3 +80,4 @@ volumes:
   redis_data:
   model_cache:
   llm_secrets:
+  reports_data:

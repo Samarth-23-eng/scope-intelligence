@@ -114,7 +114,13 @@ async def get_report(competitor_id: int):
         report_path = generate_competitor_report(competitor_id)
         
         if not report_path:
-            raise HTTPException(status_code=500, detail="Failed to generate report")
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "PDF report generation failed. "
+                    "Check the API logs for the recorded cause."
+                ),
+            )
 
         safe_path = secure_report_path(
             report_path,
@@ -122,7 +128,13 @@ async def get_report(competitor_id: int):
         )
         if safe_path is None:
             logger.error("Report generator returned an unsafe or missing path")
-            raise HTTPException(status_code=500, detail="Failed to generate report")
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "The PDF was generated at an invalid location. "
+                    "Check the API logs for details."
+                ),
+            )
         
         return FileResponse(
             path=str(safe_path),
@@ -132,9 +144,15 @@ async def get_report(competitor_id: int):
         
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Failed to generate report: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate report")
+    except Exception:
+        logger.exception("Failed to generate report for competitor %s", competitor_id)
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "PDF report generation failed. "
+                "Check the API logs for the recorded cause."
+            ),
+        )
 
 
 @router.get("/competitors/{competitor_id}/report/latest")
