@@ -1,4 +1,8 @@
-from intelligence.retrieval import EvidenceRetriever, RetrievalHit
+from contextlib import contextmanager
+from unittest.mock import MagicMock
+
+from intelligence import retrieval
+from intelligence.retrieval import ChunkIndexer, EvidenceRetriever, RetrievalHit
 
 
 def hit(
@@ -107,3 +111,41 @@ def test_evidence_pack_enforces_domain_and_prompt_budgets(monkeypatch):
     assert pack.diagnostics["prompt_chars"] <= 1000
     assert pack.diagnostics["excluded"]["domain_limit"] == 1
     assert pack.diagnostics["excluded"]["prompt_budget"] == 1
+
+
+def test_indexing_error_response_does_not_expose_internal_exception(monkeypatch):
+    row = {
+        "id": 1,
+        "content": "Evidence",
+        "document_version_id": 2,
+        "document_id": 3,
+        "canonical_url": "https://example.com/evidence",
+        "title": "Evidence",
+        "source_type": "website",
+        "published_at": None,
+        "metadata": {},
+        "evidence_id": 4,
+    }
+
+    cursor = MagicMock()
+    cursor.fetchall.return_value = [row]
+    connection = MagicMock()
+    connection.cursor.return_value.__enter__.return_value = cursor
+
+    @contextmanager
+    def fake_connection():
+        yield connection
+
+    client = MagicMock()
+    client.add.side_effect = RuntimeError(
+        "private provider details and C:/internal/stack/path"
+    )
+    monkeypatch.setattr(retrieval, "get_connection", fake_connection)
+    monkeypatch.setattr(ChunkIndexer, "_prepare_model", classmethod(lambda cls: True))
+    monkeypatch.setattr(retrieval, "get_client", lambda: client)
+
+    result = ChunkIndexer.index_pending(1)
+
+    assert result["error"] == "semantic indexing failed"
+    assert "private provider" not in repr(result)
+    assert "internal/stack" not in repr(result)

@@ -17,7 +17,6 @@ import { generateReport, listReports, sendReport } from '@/lib/api';
 interface ReportInfo {
   filename: string;
   competitor_id: number;
-  path: string;
   size: number;
   created_at: string;
 }
@@ -133,7 +132,7 @@ export default function ReportsPage() {
                 {reports.map((report, index) => (
                   <article key={`${report.filename}-${report.created_at}`}>
                     <span><Icon name="document" size={18} /></span>
-                    <div><strong>{report.filename}</strong><p>{report.path}</p></div>
+                    <div><strong>{report.filename}</strong><p>Stored in the protected report workspace</p></div>
                     {index === 0 ? <em>Latest</em> : <span />}
                     <div><strong>{sizeLabel(report.size)}</strong><time>{formatDate(report.created_at, true)}</time></div>
                   </article>

@@ -196,7 +196,10 @@ class ChunkIndexer:
                 "indexed": 0,
                 "pending": len(rows),
                 "semantic": False,
-                "error": str(exc)[:500],
+                # Never return provider, filesystem, or stack details through
+                # the public reindex endpoint. The complete diagnostic remains
+                # available only in server logs.
+                "error": "semantic indexing failed",
             }
 
     @classmethod

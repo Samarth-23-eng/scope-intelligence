@@ -4,7 +4,6 @@ Report API routes for Scope Intelligence
 Endpoints for generating reports and managing alerts.
 """
 
-import os
 import logging
 from datetime import datetime
 from typing import List, Optional
@@ -18,6 +17,7 @@ from reports.pdf_generator import (
     generate_competitor_report,
     get_latest_report,
     list_reports,
+    secure_report_path,
 )
 from alerts.alert_engine import (
     run_alert_checks,
@@ -38,7 +38,6 @@ router = APIRouter()
 
 class ReportResponse(BaseModel):
     filename: str
-    path: str
     size: int
     created_at: str
 
@@ -114,15 +113,20 @@ async def get_report(competitor_id: int):
         # Generate report
         report_path = generate_competitor_report(competitor_id)
         
-        if not report_path or not os.path.exists(report_path):
+        if not report_path:
+            raise HTTPException(status_code=500, detail="Failed to generate report")
+
+        safe_path = secure_report_path(
+            report_path,
+            competitor_id=competitor_id,
+        )
+        if safe_path is None:
+            logger.error("Report generator returned an unsafe or missing path")
             raise HTTPException(status_code=500, detail="Failed to generate report")
         
-        # Get filename for download
-        filename = os.path.basename(report_path)
-        
         return FileResponse(
-            path=report_path,
-            filename=filename,
+            path=str(safe_path),
+            filename=safe_path.name,
             media_type="application/pdf",
         )
         
@@ -150,12 +154,16 @@ async def get_latest_report_endpoint(competitor_id: int):
         if not report_path:
             raise HTTPException(status_code=404, detail="No reports found")
         
-        filename = os.path.basename(report_path)
-        stat = os.stat(report_path)
+        safe_path = secure_report_path(
+            report_path,
+            competitor_id=competitor_id,
+        )
+        if safe_path is None:
+            raise HTTPException(status_code=404, detail="No reports found")
+        stat = safe_path.stat()
         
         return ReportResponse(
-            filename=filename,
-            path=report_path,
+            filename=safe_path.name,
             size=stat.st_size,
             created_at=datetime.fromtimestamp(stat.st_mtime).isoformat(),
         )
@@ -179,8 +187,7 @@ async def list_competitor_reports(competitor_id: int):
         raise HTTPException(status_code=404, detail="Competitor not found")
     
     try:
-        reports = list_reports(competitor_id)
-        return reports
+        return [ReportResponse(**report) for report in list_reports(competitor_id)]
         
     except Exception as e:
         logger.error(f"Failed to list reports: {e}")

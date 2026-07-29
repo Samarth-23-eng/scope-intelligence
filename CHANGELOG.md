@@ -12,6 +12,18 @@ versioning where practical.
 - Provider-neutral shared LLM gateway with encrypted BYOK storage.
 - Model Connections dashboard for cloud, local, and OpenAI-compatible models.
 
+### Security
+
+- Upgraded vulnerable Python and dashboard dependencies, including the PDF
+  parser, cryptography stack, FastAPI/Starlette stack, and development tooling.
+- Removed unused vulnerable LangChain packages and pinned JobSpy to an immutable
+  upstream revision that permits a patched Markdownify release.
+- Constrained generated-report paths to the private report workspace and removed
+  server filesystem paths from API responses.
+- Prevented internal indexing diagnostics from leaking through API responses and
+  hardened public-profile hostname validation.
+- Added Python and dashboard dependency audits to continuous integration.
+
 ## [0.1.0] — 2026-07-29
 
 ### Added

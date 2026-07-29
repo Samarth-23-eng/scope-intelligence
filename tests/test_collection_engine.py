@@ -32,3 +32,6 @@ def test_source_profile_classification_rejects_content_and_reserved_github_paths
     assert SourceProfileStore.classify("https://youtu.be/video-id") is None
     assert SourceProfileStore.classify("https://github.com/search?q=acme") is None
     assert SourceProfileStore.classify("https://example.com/github/acme") is None
+    assert SourceProfileStore.classify(
+        "https://notlinkedin.com/company/acme"
+    ) is None

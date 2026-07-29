@@ -585,7 +585,8 @@ class SourceProfileStore:
             key = parts[0]
             if key.casefold() not in cls.RESERVED_GITHUB_PATHS:
                 return "github", key
-        if host.endswith("linkedin.com") and len(parts) > 1 and parts[0] == "company":
+        is_linkedin = host == "linkedin.com" or host.endswith(".linkedin.com")
+        if is_linkedin and len(parts) > 1 and parts[0] == "company":
             return "linkedin", parts[1]
         if host in {"x.com", "twitter.com"} and parts:
             return "x", parts[0]

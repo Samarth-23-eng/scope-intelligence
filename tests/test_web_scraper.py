@@ -1,5 +1,6 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
+from urllib.parse import urlsplit
 
 from agents.ingestion.change_detector import SnapshotResult
 from agents.ingestion import web_scraper
@@ -386,7 +387,9 @@ def test_crawler_v2_counts_unique_source_profiles(monkeypatch):
 
         @staticmethod
         def classify(url):
-            return ("youtube", "@example") if "youtube.com" in url else None
+            host = (urlsplit(url).hostname or "").casefold()
+            is_youtube = host == "youtube.com" or host.endswith(".youtube.com")
+            return ("youtube", "@example") if is_youtube else None
 
         @staticmethod
         def normalize_profile_url(url):

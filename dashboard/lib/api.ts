@@ -517,7 +517,6 @@ export async function generateReport(id: number): Promise<Blob> {
 
 export async function getLatestReport(id: number): Promise<{
   filename: string;
-  path: string;
   size: number;
   created_at: string;
 }> {
@@ -527,7 +526,6 @@ export async function getLatestReport(id: number): Promise<{
 export async function listReports(id: number): Promise<Array<{
   filename: string;
   competitor_id: number;
-  path: string;
   size: number;
   created_at: string;
 }>> {

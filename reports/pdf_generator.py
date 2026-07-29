@@ -6,7 +6,9 @@ Generates professional PDF reports for competitor intelligence.
 
 import os
 import logging
+import re
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from reportlab.lib import colors
@@ -28,9 +30,39 @@ from db.postgres import get_connection
 
 logger = logging.getLogger(__name__)
 
-# Output directory for generated reports
-REPORTS_DIR = os.path.join(os.path.dirname(__file__), "generated")
-os.makedirs(REPORTS_DIR, exist_ok=True)
+# Output directory for generated reports. Resolve it once so every later path
+# can be constrained to the same trusted directory.
+REPORTS_ROOT = (Path(__file__).resolve().parent / "generated").resolve()
+REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
+REPORTS_DIR = str(REPORTS_ROOT)
+REPORT_FILENAME_PATTERN = re.compile(
+    r"^competitor_(?P<competitor_id>[1-9]\d*)_(?P<timestamp>\d{8}_\d{6})\.pdf$"
+)
+
+
+def secure_report_path(
+    path_value: str | os.PathLike[str],
+    *,
+    competitor_id: int | None = None,
+    require_exists: bool = True,
+) -> Path | None:
+    """Return a report path only when it is a valid file inside REPORTS_ROOT."""
+    filename = Path(os.fspath(path_value)).name
+    match = REPORT_FILENAME_PATTERN.fullmatch(filename)
+    if not match:
+        return None
+    if (
+        competitor_id is not None
+        and int(match.group("competitor_id")) != int(competitor_id)
+    ):
+        return None
+
+    candidate = (REPORTS_ROOT / filename).resolve()
+    if candidate.parent != REPORTS_ROOT:
+        return None
+    if require_exists and not candidate.is_file():
+        return None
+    return candidate
 
 
 def _get_competitor_info(competitor_id: int) -> Optional[Dict[str, Any]]:
@@ -419,11 +451,25 @@ def generate_competitor_report(competitor_id: int) -> Optional[str]:
         
         # Generate filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"competitor_{competitor_id}_{timestamp}.pdf"
-        output_path = os.path.join(REPORTS_DIR, filename)
+        safe_competitor_id = int(competitor["id"])
+        filename = f"competitor_{safe_competitor_id}_{timestamp}.pdf"
+        output_path = secure_report_path(
+            filename,
+            competitor_id=safe_competitor_id,
+            require_exists=False,
+        )
+        if output_path is None:
+            logger.error("Could not construct a safe report path")
+            return None
         
         # Build PDF
-        result_path = _build_pdf(competitor, summary, signals, predictions, output_path)
+        result_path = _build_pdf(
+            competitor,
+            summary,
+            signals,
+            predictions,
+            str(output_path),
+        )
         
         logger.info(f"Report generated: {result_path}")
         return result_path
@@ -455,7 +501,8 @@ def get_latest_report(competitor_id: int) -> Optional[str]:
         
         # Sort by filename (includes timestamp) and get latest
         reports.sort(reverse=True)
-        return os.path.join(REPORTS_DIR, reports[0])
+        latest = secure_report_path(reports[0], competitor_id=competitor_id)
+        return str(latest) if latest else None
         
     except Exception as e:
         logger.error(f"Failed to get latest report: {e}")
@@ -491,13 +538,17 @@ def list_reports(competitor_id: Optional[int] = None) -> List[Dict[str, Any]]:
             if competitor_id and file_competitor_id != competitor_id:
                 continue
             
-            filepath = os.path.join(REPORTS_DIR, filename)
-            stat = os.stat(filepath)
+            filepath = secure_report_path(
+                filename,
+                competitor_id=file_competitor_id,
+            )
+            if filepath is None:
+                continue
+            stat = filepath.stat()
             
             reports.append({
                 'filename': filename,
                 'competitor_id': file_competitor_id,
-                'path': filepath,
                 'size': stat.st_size,
                 'created_at': datetime.fromtimestamp(stat.st_mtime).isoformat(),
             })
@@ -516,14 +567,13 @@ def delete_reports(competitor_id: int) -> int:
     deleted = 0
     prefix = f"competitor_{competitor_id}_"
     try:
-        reports_root = os.path.abspath(REPORTS_DIR)
         for filename in os.listdir(REPORTS_DIR):
             if not filename.startswith(prefix) or not filename.endswith(".pdf"):
                 continue
-            filepath = os.path.abspath(os.path.join(REPORTS_DIR, filename))
-            if os.path.commonpath([filepath, reports_root]) != reports_root:
+            filepath = secure_report_path(filename, competitor_id=competitor_id)
+            if filepath is None:
                 continue
-            os.remove(filepath)
+            filepath.unlink()
             deleted += 1
     except Exception as e:
         logger.error(f"Failed to delete reports for competitor {competitor_id}: {e}")
