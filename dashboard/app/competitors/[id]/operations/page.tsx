@@ -210,7 +210,12 @@ export default function OperationsPage() {
 
   const activeSources = profiles.filter((profile) => profile.status === 'active' || profile.status === 'verified').length;
   const failedRuns = runs.filter((run) => run.status === 'failed' || run.status === 'partial').length;
-  const collectedItems = coverage?.adapters.reduce((sum, adapter) => sum + adapter.items, 0) ?? rawData.length;
+  const collectedItems = coverage?.documents_by_source.reduce(
+    (sum, source) => sum + source.documents,
+    0,
+  ) ?? rawData.length;
+  const sourceChannels = coverage?.documents_by_source.length ?? 0;
+  const recoverableErrors = errors.filter((item) => item.recoverable).length;
 
   return (
     <main className="company-page">
@@ -229,8 +234,8 @@ export default function OperationsPage() {
       <section className="workspace-metric-grid">
         <MetricTile label="Pipeline state" value={pipelineStatus?.status ?? 'idle'} note={pipelineStatus?.stage ? `Current stage: ${pipelineStatus.stage}` : 'No active run'} icon="play" tone={pipelineRunning ? 'good' : pipelineStatus?.status === 'failed' ? 'danger' : 'neutral'} />
         <MetricTile label="Collected records" value={collectedItems} note={`${rawData.length} raw records retained`} icon="database" />
-        <MetricTile label="Active sources" value={activeSources} note={`${profiles.length} source profiles`} icon="link" tone={activeSources ? 'good' : 'warning'} />
-        <MetricTile label="Open errors" value={errors.length} note={`${failedRuns} runs need review`} icon="error" tone={errors.length ? 'danger' : 'good'} />
+        <MetricTile label="Source channels" value={sourceChannels} note={`${activeSources} active source profiles`} icon="link" tone={sourceChannels ? 'good' : 'warning'} />
+        <MetricTile label="Open errors" value={errors.length} note={`${recoverableErrors} recoverable · ${failedRuns} incomplete runs`} icon="error" tone={errors.length ? 'danger' : 'good'} />
       </section>
 
       <div className="view-switcher" role="tablist" aria-label="Collection operation views">

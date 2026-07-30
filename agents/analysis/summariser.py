@@ -98,8 +98,22 @@ only when supported. State evidence gaps plainly."""
                     }
                 },
             )
-            if not str(payload.get("summary") or "").strip():
+            summary_text = str(payload.get("summary") or "").strip()
+            if not summary_text:
                 result.errors.append("'summary' must be a non-empty string.")
+            process_language = (
+                "let me analyze",
+                "let me review",
+                "i need to analyze",
+                "i'll analyze",
+                "looking at the provided",
+                "here is my analysis process",
+            )
+            if any(phrase in summary_text.casefold() for phrase in process_language):
+                result.errors.append(
+                    "'summary' must contain the finished intelligence brief, "
+                    "not model process narration."
+                )
             return result
 
         payload = self.structured_llm_call(

@@ -10,6 +10,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+from xml.sax.saxutils import escape as xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -218,6 +219,8 @@ def _build_pdf(
     summary: Optional[Dict[str, Any]],
     signals: List[Dict[str, Any]],
     predictions: List[Dict[str, Any]],
+    claims: List[Dict[str, Any]],
+    relationships: List[Dict[str, Any]],
     output_path: str,
 ) -> str:
     """Build the PDF document with all sections."""
@@ -236,7 +239,7 @@ def _build_pdf(
     # Title Section
     story.append(Paragraph("OSINT Intelligence Report", styles['ReportTitle']))
     story.append(Paragraph(
-        f"{competitor['name']} - {competitor['domain']}",
+        f"{_pdf_text(competitor['name'])} - {_pdf_text(competitor['domain'])}",
         styles['ReportSubtitle']
     ))
     story.append(Paragraph(
@@ -265,7 +268,7 @@ def _build_pdf(
         summary_text = summary['summary']
         for paragraph in summary_text.split('\n\n'):
             if paragraph.strip():
-                story.append(Paragraph(paragraph.strip(), styles['ReportBody']))
+                story.append(Paragraph(_pdf_text(paragraph.strip()), styles['ReportBody']))
                 story.append(Spacer(1, 5))
     else:
         story.append(Paragraph(
@@ -295,7 +298,11 @@ def _build_pdf(
             table_data.append([
                 signal['signal_type'],
                 signal['severity'].upper(),
-                Paragraph(signal['description'][:100] + ('...' if len(signal['description']) > 100 else ''), styles['ReportBody']),
+                Paragraph(
+                    _pdf_text(signal['description'][:100])
+                    + ('...' if len(signal['description']) > 100 else ''),
+                    styles['ReportBody'],
+                ),
                 detected,
             ])
         
@@ -341,7 +348,7 @@ def _build_pdf(
                 styles['ReportBody']
             ))
             story.append(Paragraph(
-                pred['prediction'],
+                _pdf_text(pred['prediction']),
                 styles['ReportBody']
             ))
             story.append(Paragraph(
@@ -390,7 +397,7 @@ def _build_pdf(
             timeline_data.append([
                 date_str,
                 event['type'],
-                Paragraph(event['description'], styles['ReportBody']),
+                Paragraph(_pdf_text(event['description']), styles['ReportBody']),
             ])
         
         timeline_table = Table(timeline_data, colWidths=[1.5*inch, 0.8*inch, 4.2*inch])
@@ -414,6 +421,113 @@ def _build_pdf(
             "No timeline events available.",
             styles['ReportBody']
         ))
+
+    story.append(PageBreak())
+    story.append(Paragraph("5. Evidence and Claims", styles['SectionHeader']))
+    story.append(Spacer(1, 10))
+    if claims:
+        for index, claim in enumerate(claims[:20], 1):
+            confidence = int(float(claim.get("confidence") or 0) * 100)
+            story.append(
+                Paragraph(
+                    (
+                        f"<b>{index}. {_pdf_text(claim.get('claim_type', 'claim')).title()}</b> "
+                        f"— {confidence}% · {_pdf_text(claim.get('status', 'proposed')).upper()}"
+                    ),
+                    styles["ReportBody"],
+                )
+            )
+            story.append(
+                Paragraph(_pdf_text(claim.get("statement")), styles["ReportBody"])
+            )
+            source_note = (
+                f" · {_pdf_text(claim.get('source_url'))}"
+                if claim.get("source_url")
+                else ""
+            )
+            story.append(
+                Paragraph(
+                    (
+                        f"<i>{int(claim.get('evidence_count') or 0)} evidence links"
+                        f"{source_note}</i>"
+                    ),
+                    styles["ReportBody"],
+                )
+            )
+            story.append(Spacer(1, 8))
+    else:
+        story.append(
+            Paragraph(
+                "No evidence-bound claims are available for this report.",
+                styles["ReportBody"],
+            )
+        )
+
+    story.append(PageBreak())
+    story.append(Paragraph("6. Relationship Intelligence", styles['SectionHeader']))
+    story.append(Spacer(1, 10))
+    if relationships:
+        relationship_data = [[
+            "Connection",
+            "Confidence",
+            "Evidence",
+            "Status",
+        ]]
+        for relationship in relationships[:20]:
+            relationship_data.append(
+                [
+                    Paragraph(
+                        (
+                            f"<b>{_pdf_text(relationship['source_name'])}</b><br/>"
+                            f"{_pdf_text(relationship['relationship_type']).replace('_', ' ')}<br/>"
+                            f"<b>{_pdf_text(relationship['target_name'])}</b>"
+                        ),
+                        styles["ReportBody"],
+                    ),
+                    f"{int(float(relationship.get('weight') or 0) * 100)}%",
+                    Paragraph(
+                        (
+                            f"{int(relationship.get('evidence_count') or 0)} links"
+                            + (
+                                f"<br/>{_pdf_text(relationship.get('source_url'))}"
+                                if relationship.get("source_url")
+                                else ""
+                            )
+                        ),
+                        styles["ReportBody"],
+                    ),
+                    (
+                        f"{str(relationship.get('status') or 'active').upper()}\n"
+                        f"{str(relationship.get('risk_level') or 'unassessed').upper()} RISK"
+                    ),
+                ]
+            )
+        relationship_table = Table(
+            relationship_data,
+            colWidths=[3.1 * inch, 0.8 * inch, 1.8 * inch, 1.0 * inch],
+        )
+        relationship_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a1a')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d8dde5')),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 7),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+                ]
+            )
+        )
+        story.append(relationship_table)
+    else:
+        story.append(
+            Paragraph(
+                "No resolved relationships are available for this report.",
+                styles["ReportBody"],
+            )
+        )
     
     # Footer
     story.append(Spacer(1, 30))
@@ -449,6 +563,8 @@ def generate_competitor_report(competitor_id: int) -> Optional[str]:
         summary = _get_latest_summary(competitor_id)
         signals = _get_signals(competitor_id)
         predictions = _get_predictions(competitor_id)
+        claims = _get_claims(competitor_id)
+        relationships = _get_relationships(competitor_id)
         
         # Generate filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -469,6 +585,8 @@ def generate_competitor_report(competitor_id: int) -> Optional[str]:
             summary,
             signals,
             predictions,
+            claims,
+            relationships,
             str(output_path),
         )
         
@@ -564,6 +682,85 @@ def list_reports(competitor_id: Optional[int] = None) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Failed to list reports: {e}")
         return []
+
+
+def _get_claims(competitor_id: int, limit: int = 20) -> List[Dict[str, Any]]:
+    """Fetch evidence-bound claims for the report appendix."""
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT claim.id, claim.claim_type, claim.statement,
+                           claim.confidence, claim.status, claim.created_at,
+                           COUNT(claim_evidence.id) AS evidence_count,
+                           MIN(evidence.source_url) AS source_url
+                    FROM claims AS claim
+                    LEFT JOIN claim_evidence
+                      ON claim_evidence.claim_id = claim.id
+                    LEFT JOIN evidence
+                      ON evidence.id = claim_evidence.evidence_id
+                    WHERE claim.competitor_id = %s
+                    GROUP BY claim.id
+                    ORDER BY claim.confidence DESC, claim.created_at DESC
+                    LIMIT %s
+                    """,
+                    (competitor_id, limit),
+                )
+                return [dict(row) for row in (cur.fetchall() or [])]
+    except Exception as exc:
+        logger.error("Failed to fetch report claims: %s", exc)
+        return []
+
+
+def _get_relationships(
+    competitor_id: int,
+    limit: int = 20,
+) -> List[Dict[str, Any]]:
+    """Fetch the strongest relationship edges and their provenance."""
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT relationship.id,
+                           source.name AS source_name,
+                           target.name AS target_name,
+                           relationship.relationship_type,
+                           relationship.weight,
+                           relationship.status,
+                           relationship.risk_level,
+                           relationship.evidence_count,
+                           relationship.source_diversity,
+                           relationship.last_seen_at,
+                           MIN(evidence.source_url) AS source_url
+                    FROM relationships AS relationship
+                    JOIN entities AS source
+                      ON source.id = relationship.source_entity_id
+                    JOIN entities AS target
+                      ON target.id = relationship.target_entity_id
+                    LEFT JOIN relationship_evidence
+                      ON relationship_evidence.relationship_id = relationship.id
+                    LEFT JOIN evidence
+                      ON evidence.id = relationship_evidence.evidence_id
+                    WHERE source.competitor_id = %s
+                      AND target.competitor_id = %s
+                      AND relationship.operator_status IS DISTINCT FROM 'dismissed'
+                    GROUP BY relationship.id, source.name, target.name
+                    ORDER BY relationship.weight DESC, relationship.last_seen_at DESC
+                    LIMIT %s
+                    """,
+                    (competitor_id, competitor_id, limit),
+                )
+                return [dict(row) for row in (cur.fetchall() or [])]
+    except Exception as exc:
+        logger.error("Failed to fetch report relationships: %s", exc)
+        return []
+
+
+def _pdf_text(value: Any) -> str:
+    """Escape untrusted text before passing it to ReportLab's XML parser."""
+    return xml_escape(str(value or "")).replace("\x00", "")
 
 
 def delete_reports(competitor_id: int) -> int:

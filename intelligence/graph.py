@@ -530,10 +530,69 @@ class RelationshipIntelligenceEngine:
                     ),
                 )
                 snapshot = cur.fetchone()
+                snapshot_id = int(snapshot["id"])
+                if entities:
+                    cur.executemany(
+                        """
+                        INSERT INTO graph_snapshot_entities (
+                            snapshot_id, entity_id, name, entity_type, metadata
+                        )
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (snapshot_id, entity_id) DO NOTHING
+                        """,
+                        [
+                            (
+                                snapshot_id,
+                                int(entity["id"]),
+                                entity["name"],
+                                entity["entity_type"],
+                                Json(json_safe(entity.get("metadata") or {})),
+                            )
+                            for entity in entities
+                        ],
+                    )
+                if analyzed_relationships:
+                    cur.executemany(
+                        """
+                        INSERT INTO graph_snapshot_relationships (
+                            snapshot_id, relationship_id,
+                            source_entity_id, target_entity_id,
+                            relationship_type, weight, status, risk_level,
+                            evidence_count, source_diversity, freshness_score,
+                            contradiction_count, first_seen_at, last_seen_at,
+                            metadata
+                        )
+                        VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s, %s
+                        )
+                        ON CONFLICT (snapshot_id, relationship_id) DO NOTHING
+                        """,
+                        [
+                            (
+                                snapshot_id,
+                                int(relationship["id"]),
+                                int(relationship["source_entity_id"]),
+                                int(relationship["target_entity_id"]),
+                                relationship["relationship_type"],
+                                float(relationship.get("weight") or 0),
+                                relationship.get("status") or "active",
+                                relationship.get("risk_level") or "unassessed",
+                                int(relationship.get("evidence_count") or 0),
+                                int(relationship.get("source_diversity") or 0),
+                                float(relationship.get("freshness_score") or 0),
+                                int(relationship.get("contradiction_count") or 0),
+                                relationship.get("first_seen_at"),
+                                relationship.get("last_seen_at"),
+                                Json(json_safe(relationship.get("metadata") or {})),
+                            )
+                            for relationship in analyzed_relationships
+                        ],
+                    )
                 conn.commit()
 
         return {
-            "snapshot_id": int(snapshot["id"]),
+            "snapshot_id": snapshot_id,
             "competitor_id": self.competitor_id,
             "entity_count": len(entities),
             "relationship_count": len(analyzed_relationships),

@@ -21,8 +21,12 @@ ALERT_NEW_PREDICTION = "new_prediction"
 ALERT_SUMMARY_UPDATED = "summary_updated"
 ALERT_PAGE_CHANGE = "page_change"
 
-# Redis key prefix for alert deduplication
+# Keep stored alert payloads and deduplication sentinels in separate namespaces.
+# Mixing both under one scan pattern previously caused integer sentinel values to
+# be parsed as alert objects, which made the alert center appear empty.
 ALERT_KEY_PREFIX = "osint:alert:"
+ALERT_DEDUPE_PREFIX = f"{ALERT_KEY_PREFIX}dedupe:"
+ALERT_STORED_PREFIX = f"{ALERT_KEY_PREFIX}stored:"
 ALERT_EXPIRY_HOURS = 24 * 7  # Keep alert dedup keys for 7 days
 
 
@@ -43,7 +47,7 @@ def _is_alert_duplicate(alert_key: str) -> bool:
     """
     try:
         redis = _get_redis()
-        key = f"{ALERT_KEY_PREFIX}{alert_key}"
+        key = f"{ALERT_DEDUPE_PREFIX}{alert_key}"
         exists = redis.exists(key)
         return bool(exists)
     except Exception as e:
@@ -60,7 +64,7 @@ def _mark_alert_sent(alert_key: str) -> None:
     """
     try:
         redis = _get_redis()
-        key = f"{ALERT_KEY_PREFIX}{alert_key}"
+        key = f"{ALERT_DEDUPE_PREFIX}{alert_key}"
         redis.setex(key, ALERT_EXPIRY_HOURS * 3600, "1")
     except Exception as e:
         logger.error(f"Redis set failed: {e}")
@@ -102,7 +106,9 @@ def _create_alert(
     }
 
 
-def check_new_signals() -> List[Dict[str, Any]]:
+def check_new_signals(
+    competitor_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     """
     Check for new strategic signals.
     
@@ -121,8 +127,9 @@ def check_new_signals() -> List[Dict[str, Any]]:
                     FROM signals s
                     JOIN competitors c ON s.competitor_id = c.id
                     WHERE s.detected_at > NOW() - INTERVAL '1 hour'
+                      AND (%s IS NULL OR s.competitor_id = %s)
                     ORDER BY s.detected_at DESC
-                """)
+                """, (competitor_id, competitor_id))
                 signals = cur.fetchall()
                 
                 for signal in signals:
@@ -171,8 +178,8 @@ def check_new_signals() -> List[Dict[str, Any]]:
                                     "severity": signal['severity'],
                                 }
                             )
+                            high_alert["metadata"]["dedupe_key"] = high_alert_key
                             alerts.append(high_alert)
-                            _mark_alert_sent(high_alert_key)
                 
                 logger.info(f"Found {len(alerts)} new signal alerts")
                 
@@ -182,7 +189,9 @@ def check_new_signals() -> List[Dict[str, Any]]:
     return alerts
 
 
-def check_new_predictions() -> List[Dict[str, Any]]:
+def check_new_predictions(
+    competitor_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     """
     Check for new predictions generated.
     
@@ -201,8 +210,9 @@ def check_new_predictions() -> List[Dict[str, Any]]:
                     FROM predictions p
                     JOIN competitors c ON p.competitor_id = c.id
                     WHERE p.created_at > NOW() - INTERVAL '1 hour'
+                      AND (%s IS NULL OR p.competitor_id = %s)
                     ORDER BY p.created_at DESC
-                """)
+                """, (competitor_id, competitor_id))
                 predictions = cur.fetchall()
                 
                 for pred in predictions:
@@ -227,8 +237,8 @@ def check_new_predictions() -> List[Dict[str, Any]]:
                         }
                     )
                     
+                    alert["metadata"]["dedupe_key"] = alert_key
                     alerts.append(alert)
-                    _mark_alert_sent(alert_key)
                 
                 logger.info(f"Found {len(alerts)} new prediction alerts")
                 
@@ -238,7 +248,9 @@ def check_new_predictions() -> List[Dict[str, Any]]:
     return alerts
 
 
-def check_summary_updates() -> List[Dict[str, Any]]:
+def check_summary_updates(
+    competitor_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     """
     Check for updated competitor summaries.
     
@@ -258,8 +270,9 @@ def check_summary_updates() -> List[Dict[str, Any]]:
                     JOIN competitors c ON i.competitor_id = c.id
                     WHERE i.insight_type = 'weekly_summary'
                     AND i.created_at > NOW() - INTERVAL '1 hour'
+                    AND (%s IS NULL OR i.competitor_id = %s)
                     ORDER BY i.created_at DESC
-                """)
+                """, (competitor_id, competitor_id))
                 summaries = cur.fetchall()
                 
                 for summary in summaries:
@@ -283,8 +296,8 @@ def check_summary_updates() -> List[Dict[str, Any]]:
                         }
                     )
                     
+                    alert["metadata"]["dedupe_key"] = alert_key
                     alerts.append(alert)
-                    _mark_alert_sent(alert_key)
                 
                 logger.info(f"Found {len(alerts)} summary update alerts")
                 
@@ -294,7 +307,9 @@ def check_summary_updates() -> List[Dict[str, Any]]:
     return alerts
 
 
-def check_page_changes() -> List[Dict[str, Any]]:
+def check_page_changes(
+    competitor_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     """Create deduplicated alerts for recently detected meaningful page changes."""
     alerts = []
     try:
@@ -315,8 +330,10 @@ def check_page_changes() -> List[Dict[str, Any]]:
                     JOIN competitors
                       ON competitors.id = changes.competitor_id
                     WHERE changes.detected_at > NOW() - INTERVAL '1 hour'
+                      AND (%s IS NULL OR changes.competitor_id = %s)
                     ORDER BY changes.detected_at DESC
-                    """
+                    """,
+                    (competitor_id, competitor_id),
                 )
                 for change in cur.fetchall():
                     alert_key = f"page_change_{change['id']}"
@@ -344,15 +361,17 @@ def check_page_changes() -> List[Dict[str, Any]]:
                             "detected_at": change["detected_at"].isoformat(),
                         },
                     )
+                    alert["metadata"]["dedupe_key"] = alert_key
                     alerts.append(alert)
-                    _mark_alert_sent(alert_key)
         logger.info(f"Found {len(alerts)} page change alerts")
     except Exception as e:
         logger.error(f"Failed to check page changes: {e}")
     return alerts
 
 
-def run_alert_checks() -> List[Dict[str, Any]]:
+def run_alert_checks(
+    competitor_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     """
     Run all alert checks and return triggered alerts.
     
@@ -364,19 +383,19 @@ def run_alert_checks() -> List[Dict[str, Any]]:
     logger.info("Running alert checks...")
     
     # Check for new signals
-    signal_alerts = check_new_signals()
+    signal_alerts = check_new_signals(competitor_id)
     all_alerts.extend(signal_alerts)
     
     # Check for new predictions
-    prediction_alerts = check_new_predictions()
+    prediction_alerts = check_new_predictions(competitor_id)
     all_alerts.extend(prediction_alerts)
     
     # Check for summary updates
-    summary_alerts = check_summary_updates()
+    summary_alerts = check_summary_updates(competitor_id)
     all_alerts.extend(summary_alerts)
 
     # Check for evidence-backed website changes
-    page_change_alerts = check_page_changes()
+    page_change_alerts = check_page_changes(competitor_id)
     all_alerts.extend(page_change_alerts)
     
     logger.info(f"Total alerts triggered: {len(all_alerts)}")
@@ -400,24 +419,22 @@ def get_recent_alerts(
     """
     try:
         redis = _get_redis()
-        pattern = f"{ALERT_KEY_PREFIX}*"
+        pattern = f"{ALERT_STORED_PREFIX}*"
         
         alerts = []
         for key in redis.scan_iter(match=pattern):
-            if key.startswith(f"{ALERT_KEY_PREFIX}osint:"):
-                # Skip internal keys
-                continue
-                
             try:
                 data = redis.get(key)
                 if data:
                     alert = json.loads(data)
+                    if not isinstance(alert, dict):
+                        continue
                     
                     if competitor_id and alert.get('competitor_id') != competitor_id:
                         continue
                     
                     alerts.append(alert)
-            except (json.JSONDecodeError, KeyError):
+            except (json.JSONDecodeError, KeyError, TypeError):
                 continue
         
         # Sort by timestamp, newest first
@@ -430,7 +447,7 @@ def get_recent_alerts(
         return []
 
 
-def store_alert(alert: Dict[str, Any]) -> None:
+def store_alert(alert: Dict[str, Any]) -> bool:
     """
     Store an alert in Redis for later retrieval.
     
@@ -439,10 +456,12 @@ def store_alert(alert: Dict[str, Any]) -> None:
     """
     try:
         redis = _get_redis()
-        key = f"{ALERT_KEY_PREFIX}stored:{alert['type']}:{alert['competitor_id']}:{alert['timestamp']}"
+        key = f"{ALERT_STORED_PREFIX}{alert['type']}:{alert['competitor_id']}:{alert['timestamp']}"
         redis.setex(key, ALERT_EXPIRY_HOURS * 3600, json.dumps(alert))
+        return True
     except Exception as e:
         logger.error(f"Failed to store alert: {e}")
+        return False
 
 
 def send_alerts(alerts: List[Dict[str, Any]]) -> None:
@@ -460,8 +479,7 @@ def send_alerts(alerts: List[Dict[str, Any]]) -> None:
     from alerts.email_notifier import send_email_alert
     
     for alert in alerts:
-        # Store alert
-        store_alert(alert)
+        stored = store_alert(alert)
         
         # Format message
         message = (
@@ -474,9 +492,16 @@ def send_alerts(alerts: List[Dict[str, Any]]) -> None:
         )
         
         # Send Discord notification
-        send_discord_alert(message)
+        discord_sent = send_discord_alert(message)
         
         # Send email for high severity alerts
+        email_sent = False
         if alert['severity'] in ('warning', 'critical'):
             subject = f"[OSINT Alert] {alert['title']} - {alert['competitor_name']}"
-            send_email_alert(subject, message)
+            email_sent = send_email_alert(subject, message)
+
+        # Only suppress a future retry after the alert has been persisted locally
+        # or delivered through at least one configured channel.
+        dedupe_key = (alert.get("metadata") or {}).get("dedupe_key")
+        if dedupe_key and (stored or discord_sent or email_sent):
+            _mark_alert_sent(str(dedupe_key))

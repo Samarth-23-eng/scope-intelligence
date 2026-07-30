@@ -4,14 +4,23 @@ import type { DashboardCompetitor } from '@/lib/types';
 
 export function CompetitorCard({ competitor }: { competitor: DashboardCompetitor }) {
   const cleanSummary = competitor.latest_summary
+    ?.replace(
+      /^(?:let me (?:analyze|review|examine)|i need to analyze|looking at the provided)[^.]*\.\s*/i,
+      '',
+    )
     ?.replace(/[#*_`>-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  const summary = cleanSummary
+  const processNarration = cleanSummary
+    ? /^(?:looking at|i need to|the provided|i cannot|as an ai)\b/i.test(cleanSummary)
+    : false;
+  const summary = cleanSummary && !processNarration
     ? cleanSummary.length > 150
       ? `${cleanSummary.slice(0, 150)}…`
       : cleanSummary
-    : 'No assessment has been generated. Run collection to build the first decision brief.';
+    : competitor.latest_summary
+      ? 'The previous assessment needs regeneration before it can be shown as an intelligence brief.'
+      : 'No assessment has been generated. Run collection to build the first decision brief.';
   const updated = competitor.last_updated
     ? new Date(competitor.last_updated).toLocaleDateString(undefined, {
         month: 'short',

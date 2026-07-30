@@ -76,13 +76,17 @@ def _verify_competitor_exists(competitor_id: int) -> bool:
 
 
 def _background_generate_and_alert(competitor_id: int) -> None:
-    """Background task to generate report and send alerts."""
+    """Deliver alerts associated with the already generated latest report."""
     try:
-        # Generate report
-        report_path = generate_competitor_report(competitor_id)
+        report_path = get_latest_report(competitor_id)
+        if not report_path:
+            logger.warning(
+                "Report delivery skipped for competitor %s because no report exists",
+                competitor_id,
+            )
+            return
         
-        # Run alert checks
-        alerts = run_alert_checks()
+        alerts = run_alert_checks(competitor_id)
         
         # Send alerts
         if alerts:
@@ -98,7 +102,8 @@ def _background_generate_and_alert(competitor_id: int) -> None:
 # Endpoints
 # ============================================================
 
-@router.get("/competitors/{competitor_id}/report")
+@router.post("/competitors/{competitor_id}/report")
+@router.get("/competitors/{competitor_id}/report", deprecated=True)
 async def get_report(competitor_id: int):
     """
     Generate and download a PDF report for a competitor.
@@ -210,6 +215,21 @@ async def list_competitor_reports(competitor_id: int):
     except Exception as e:
         logger.error(f"Failed to list reports: {e}")
         raise HTTPException(status_code=500, detail="Failed to list reports")
+
+
+@router.get("/competitors/{competitor_id}/report/{filename}")
+async def download_competitor_report(competitor_id: int, filename: str):
+    """Download one existing report without generating a replacement."""
+    if not _verify_competitor_exists(competitor_id):
+        raise HTTPException(status_code=404, detail="Competitor not found")
+    safe_path = secure_report_path(filename, competitor_id=competitor_id)
+    if safe_path is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return FileResponse(
+        path=str(safe_path),
+        filename=safe_path.name,
+        media_type="application/pdf",
+    )
 
 
 @router.get("/competitors/{competitor_id}/alerts")

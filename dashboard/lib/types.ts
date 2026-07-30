@@ -261,6 +261,54 @@ export interface RelationshipIntelligence {
   created_at: string | null;
 }
 
+export interface GraphSnapshot {
+  id: number;
+  pipeline_run_id: number | null;
+  entity_count: number;
+  relationship_count: number;
+  component_count: number;
+  disputed_relationships: number;
+  weak_relationships: number;
+  metrics: Record<string, unknown>;
+  created_at: string;
+  has_state: boolean;
+}
+
+export interface GraphPath {
+  mode: 'strongest' | 'shortest';
+  hop_count: number;
+  score: number;
+  nodes: Entity[];
+  relationships: Relationship[];
+}
+
+export interface GraphDiff {
+  from_snapshot_id: number;
+  to_snapshot_id: number;
+  entities: {
+    added: Entity[];
+    removed: Entity[];
+  };
+  relationships: {
+    added: Relationship[];
+    removed: Relationship[];
+    changed: Array<{
+      relationship_id: number;
+      change_type: 'strengthened' | 'weakened' | 'disputed' | 'updated';
+      weight_delta: number;
+      before: Relationship;
+      after: Relationship;
+    }>;
+  };
+  summary: {
+    entities_added: number;
+    entities_removed: number;
+    relationships_added: number;
+    relationships_removed: number;
+    relationships_changed: number;
+  };
+}
+
 export type InvestigationStatus =
   | 'draft'
   | 'queued'

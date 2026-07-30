@@ -21,6 +21,7 @@ from psycopg2.extras import Json
 from config.settings import settings
 from db.postgres import get_connection, run_migrations, close_pool, get_pool
 from db.redis_client import get_client as get_redis_client, close_client as close_redis_client
+from api.graph_routes import router as graph_router
 from api.report_routes import router as report_router
 from intelligence.foundation import RunTracker
 from intelligence.retrieval import ChunkIndexer, EvidenceRetriever
@@ -62,6 +63,29 @@ async def lifespan(app: FastAPI):
                 WHERE status IN ('queued', 'running')
                 """
             )
+            cur.execute(
+                """
+                UPDATE pipeline_tasks
+                SET status = 'cancelled',
+                    error = COALESCE(error, 'Interrupted by API restart'),
+                    completed_at = COALESCE(completed_at, NOW())
+                WHERE status IN ('pending', 'running', 'retrying')
+                  AND run_id IN (
+                      SELECT id
+                      FROM pipeline_runs
+                      WHERE status IN ('queued', 'running')
+                  )
+                """
+            )
+            cur.execute(
+                """
+                UPDATE pipeline_runs
+                SET status = 'partial',
+                    error = COALESCE(error, 'Interrupted by API restart'),
+                    completed_at = COALESCE(completed_at, NOW())
+                WHERE status IN ('queued', 'running')
+                """
+            )
             conn.commit()
     get_redis_client()
     scheduler_task = None
@@ -93,6 +117,7 @@ app = FastAPI(
 
 # Include report routes
 app.include_router(report_router)
+app.include_router(graph_router)
 
 app.add_middleware(
     CORSMiddleware,

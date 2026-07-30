@@ -21,6 +21,7 @@ def test_migrations_are_numbered_and_ordered():
         "014_claim_citation_integrity_v12.sql",
         "015_agent_output_quality_v13.sql",
         "016_llm_gateway_v14.sql",
+        "017_graph_studio_v15.sql",
     ]
 
 

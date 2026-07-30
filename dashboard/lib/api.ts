@@ -28,6 +28,9 @@ import {
   CollectionCoverage,
   CollectionError,
   AccessRecoveryConfig,
+  GraphDiff,
+  GraphPath,
+  GraphSnapshot,
   RelationshipIntelligence,
   Investigation,
   MonitoringOverview,
@@ -450,6 +453,43 @@ export async function analyzeRelationships(
   );
 }
 
+export async function getGraphSnapshots(id: number): Promise<GraphSnapshot[]> {
+  return fetchAPI<GraphSnapshot[]>(`/competitors/${id}/graph/snapshots`);
+}
+
+export async function getGraphPath(
+  id: number,
+  sourceEntityId: number,
+  targetEntityId: number,
+  mode: 'strongest' | 'shortest' = 'strongest',
+): Promise<GraphPath> {
+  const params = new URLSearchParams({
+    source_entity_id: String(sourceEntityId),
+    target_entity_id: String(targetEntityId),
+    mode,
+  });
+  return fetchAPI<GraphPath>(`/competitors/${id}/graph/path?${params}`);
+}
+
+export async function getGraphDiff(
+  id: number,
+  fromSnapshotId: number,
+  toSnapshotId: number,
+): Promise<GraphDiff> {
+  const params = new URLSearchParams({
+    from_snapshot_id: String(fromSnapshotId),
+    to_snapshot_id: String(toSnapshotId),
+  });
+  return fetchAPI<GraphDiff>(`/competitors/${id}/graph/diff?${params}`);
+}
+
+export function graphExportUrl(
+  id: number,
+  format: 'json' | 'csv' | 'graphml',
+): string {
+  return `${API_BASE_URL}/competitors/${id}/graph/export?format=${format}`;
+}
+
 export async function getInvestigations(id: number): Promise<Investigation[]> {
   return fetchAPI<Investigation[]>(`/competitors/${id}/investigations`);
 }
@@ -508,6 +548,7 @@ export async function getDashboard(): Promise<DashboardResponse> {
 export async function generateReport(id: number): Promise<Blob> {
   const url = `${API_BASE_URL}/competitors/${id}/report`;
   const response = await fetch(url, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     cache: 'no-store',
   });
@@ -517,6 +558,10 @@ export async function generateReport(id: number): Promise<Blob> {
   }
 
   return response.blob();
+}
+
+export function reportDownloadUrl(id: number, filename: string): string {
+  return `${API_BASE_URL}/competitors/${id}/report/${encodeURIComponent(filename)}`;
 }
 
 export async function getLatestReport(id: number): Promise<{

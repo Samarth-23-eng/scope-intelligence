@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/Icon';
-import { RelationshipGraph } from '@/components/RelationshipGraph';
+import { GraphStudio } from '@/components/GraphStudio';
 import { useCompanyWorkspace } from '@/components/company/CompanyWorkspace';
 import {
   EmptyState,
@@ -18,10 +18,16 @@ import {
   analyzeRelationships,
   getCompetitorEntities,
   getCompetitorRelationships,
+  getGraphSnapshots,
   getRelationshipIntelligence,
   resolveEntities,
 } from '@/lib/api';
-import type { Entity, Relationship, RelationshipIntelligence } from '@/lib/types';
+import type {
+  Entity,
+  GraphSnapshot,
+  Relationship,
+  RelationshipIntelligence,
+} from '@/lib/types';
 
 type View = 'graph' | 'relationships' | 'entities' | 'quality';
 
@@ -30,6 +36,7 @@ export default function RelationshipsPage() {
   const [entities, setEntities] = useState<Entity[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [intelligence, setIntelligence] = useState<RelationshipIntelligence | null>(null);
+  const [snapshots, setSnapshots] = useState<GraphSnapshot[]>([]);
   const [view, setView] = useState<View>('graph');
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState(false);
@@ -40,14 +47,16 @@ export default function RelationshipsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [entityRows, relationshipRows, graphIntelligence] = await Promise.all([
+      const [entityRows, relationshipRows, graphIntelligence, graphSnapshots] = await Promise.all([
         getCompetitorEntities(competitorId),
         getCompetitorRelationships(competitorId),
         getRelationshipIntelligence(competitorId),
+        getGraphSnapshots(competitorId),
       ]);
       setEntities(entityRows);
       setRelationships(relationshipRows);
       setIntelligence(graphIntelligence);
+      setSnapshots(graphSnapshots);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Relationship intelligence is unavailable.');
     } finally {
@@ -102,7 +111,7 @@ export default function RelationshipsPage() {
       <PageHeading
         eyebrow="RELATIONSHIP INTELLIGENCE"
         title="Entity and influence map"
-        description="Trace the people, products, technologies, partners, investors, and organizations connected to this company—each edge backed by source evidence."
+        description="Trace people, products, technologies, partners, investors, and organizations—then inspect the evidence behind every connection."
         actions={
           <>
             <button type="button" className="secondary-button" onClick={() => void handleAnalyze()} disabled={analyzing || loading}>
@@ -141,7 +150,13 @@ export default function RelationshipsPage() {
       {loading ? <LoadingState label="Building relationship workspace" /> : null}
 
       {!loading && view === 'graph' ? (
-        <RelationshipGraph entities={entities} relationships={relationships} intelligence={intelligence} resolving={resolving} onResolve={() => void handleResolve()} />
+        <GraphStudio
+          competitorId={competitorId}
+          entities={entities}
+          relationships={relationships}
+          intelligence={intelligence}
+          snapshots={snapshots}
+        />
       ) : null}
 
       {!loading && view === 'relationships' ? (

@@ -12,7 +12,12 @@ import {
   Panel,
   formatDate,
 } from '@/components/company/PagePrimitives';
-import { generateReport, listReports, sendReport } from '@/lib/api';
+import {
+  generateReport,
+  listReports,
+  reportDownloadUrl,
+  sendReport,
+} from '@/lib/api';
 
 interface ReportInfo {
   filename: string;
@@ -82,7 +87,11 @@ export default function ReportsPage() {
     setNotice(null);
     try {
       const result = await sendReport(competitorId);
-      setNotice(`Latest report sent successfully. ${result.alerts_triggered} alert${result.alerts_triggered === 1 ? '' : 's'} included.`);
+      setNotice(
+        result.status === 'started'
+          ? 'Delivery started in the background. Check alerts and service logs for the final outcome.'
+          : `Delivery completed with ${result.alerts_triggered} alert${result.alerts_triggered === 1 ? '' : 's'}.`,
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Report delivery failed.');
     } finally {
@@ -132,7 +141,17 @@ export default function ReportsPage() {
                 {reports.map((report, index) => (
                   <article key={`${report.filename}-${report.created_at}`}>
                     <span><Icon name="document" size={18} /></span>
-                    <div><strong>{report.filename}</strong><p>Stored in the protected report workspace</p></div>
+                    <div>
+                      <strong>{report.filename}</strong>
+                      <p>Stored in the protected report workspace</p>
+                      <a
+                        className="report-download-link"
+                        href={reportDownloadUrl(competitorId, report.filename)}
+                      >
+                        <Icon name="download" size={13} />
+                        Download report
+                      </a>
+                    </div>
                     {index === 0 ? <em>Latest</em> : <span />}
                     <div><strong>{sizeLabel(report.size)}</strong><time>{formatDate(report.created_at, true)}</time></div>
                   </article>
