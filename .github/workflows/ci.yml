@@ -23,6 +23,8 @@ jobs:
 
       - name: Scan repository history for secrets
         uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   backend:
     runs-on: ubuntu-latest
