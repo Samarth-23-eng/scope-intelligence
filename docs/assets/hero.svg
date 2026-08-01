@@ -68,5 +68,8 @@
     <rect x="330" width="154" height="38" rx="19" fill="#1a172d" stroke="#8b7cf6" stroke-opacity=".4"/>
     <circle cx="352" cy="19" r="4" fill="#9d8df4"/>
     <text x="367" y="24" fill="#cdc6f2">MODEL-AGNOSTIC</text>
+    <rect x="498" width="138" height="38" rx="19" fill="#2a1c12" stroke="#e1a04e" stroke-opacity=".45"/>
+    <circle cx="520" cy="19" r="4" fill="#e1a04e"/>
+    <text x="535" y="24" fill="#e2c08f">PRE-ALPHA</text>
   </g>
 </svg>

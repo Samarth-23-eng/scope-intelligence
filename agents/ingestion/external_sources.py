@@ -14,6 +14,7 @@ import httpx
 from agents.ingestion.base import BaseIngestionAgent
 from config.settings import settings
 from intelligence.collection import CollectionCampaignStore, SourceProfileStore
+from intelligence.security import redact_sensitive_text
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ class ExternalSourceAgent(BaseIngestionAgent):
         headers = {"User-Agent": "OSINTPlatform/4.0"}
         async with httpx.AsyncClient(
             timeout=max(settings.crawler_request_timeout_seconds, 10.0),
-            follow_redirects=True,
+            follow_redirects=False,
             headers=headers,
         ) as client:
             outcomes = await asyncio.gather(
@@ -84,7 +85,7 @@ class ExternalSourceAgent(BaseIngestionAgent):
         for profile, outcome in zip(profiles, outcomes):
             source_type = profile["source_type"]
             if isinstance(outcome, Exception):
-                message = str(outcome)[:500]
+                message = redact_sensitive_text(outcome)[:500]
                 self.last_run_stats[source_type]["errors"].append(message)
                 self.registry.mark_collected(
                     int(profile["id"]),
@@ -453,7 +454,9 @@ class ExternalSourceAgent(BaseIngestionAgent):
                 "items": len(comments),
             }
         except Exception as exc:
-            self.last_run_stats["youtube"]["errors"].append(str(exc)[:500])
+            self.last_run_stats["youtube"]["errors"].append(
+                redact_sensitive_text(exc)[:500]
+            )
             return None
 
     async def _collect_github(
@@ -594,7 +597,9 @@ class ExternalSourceAgent(BaseIngestionAgent):
                 releases_response.raise_for_status()
                 releases = releases_response.json() or []
             except Exception as exc:
-                self.last_run_stats["github"]["errors"].append(str(exc)[:500])
+                self.last_run_stats["github"]["errors"].append(
+                    redact_sensitive_text(exc)[:500]
+                )
                 continue
             for release in releases[: max(settings.github_releases_per_repository, 1)]:
                 release_url = str(release.get("html_url") or "")

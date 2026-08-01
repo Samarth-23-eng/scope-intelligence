@@ -42,6 +42,7 @@ const sections: Array<{
   { label: 'Research', description: 'Agent investigations', segment: 'research', icon: 'spark', group: 'Analysis' },
   { label: 'Evidence', description: 'Sources and claims', segment: 'evidence', icon: 'book', group: 'Analysis' },
   { label: 'Relationships', description: 'Entity graph', segment: 'relationships', icon: 'network', group: 'Analysis' },
+  { label: 'Collection Studio', description: 'Social & public sources', segment: 'collection', icon: 'layers', group: 'Collection' },
   { label: 'Reports', description: 'Briefings and export', segment: 'reports', icon: 'document', group: 'Output' },
   { label: 'Operations', description: 'Pipeline and sources', segment: 'operations', icon: 'settings', group: 'System' },
 ];

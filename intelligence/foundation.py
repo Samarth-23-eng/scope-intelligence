@@ -14,6 +14,7 @@ from psycopg2.extras import Json
 
 from config.settings import settings
 from db.postgres import get_connection
+from intelligence.security import redact_sensitive, redact_sensitive_text
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -174,7 +175,7 @@ class RunTracker:
                     (
                         status,
                         Json(json_safe(summary or {})),
-                        error[:10000] if error else None,
+                        redact_sensitive_text(error)[:10000] if error else None,
                         self.run_id,
                     ),
                 )
@@ -243,7 +244,7 @@ class RunTracker:
                 self._finish_task(
                     task_id,
                     status="failed" if final else "retrying",
-                    error=str(exc),
+                    error=redact_sensitive_text(exc),
                     latency_ms=int((time.perf_counter() - started) * 1000),
                 )
                 if final:
@@ -252,7 +253,7 @@ class RunTracker:
                     "Retrying pipeline task %s after attempt %s: %s",
                     task_key,
                     attempt,
-                    exc,
+                    redact_sensitive_text(exc),
                 )
         if last_error:
             raise last_error
@@ -335,7 +336,7 @@ class RunTracker:
                     (
                         status,
                         Json(payload),
-                        error[:10000] if error else None,
+                        redact_sensitive_text(error)[:10000] if error else None,
                         status,
                         task_id,
                     ),
@@ -859,9 +860,9 @@ class SourceHealthStore:
                         0 if success else 1,
                         max(items, 0),
                         latency_ms,
-                        error[:5000] if error else None,
+                        redact_sensitive_text(error)[:5000] if error else None,
                         success,
-                        Json(json_safe(metadata or {})),
+                        Json(json_safe(redact_sensitive(metadata or {}))),
                         success,
                         success,
                     ),

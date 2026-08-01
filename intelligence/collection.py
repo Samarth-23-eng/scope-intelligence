@@ -10,6 +10,7 @@ from psycopg2.extras import Json
 
 from db.postgres import get_connection
 from intelligence.foundation import json_safe
+from intelligence.security import redact_sensitive, redact_sensitive_text
 
 
 @dataclass(frozen=True)
@@ -159,11 +160,15 @@ class CollectionErrorStore:
                         severity,
                         engine[:80] if engine else None,
                         Json(list(dict.fromkeys(attempts))),
-                        technical_message[:20000],
-                        user_message[:20000],
-                        suggested_action[:20000] if suggested_action else None,
+                        redact_sensitive_text(technical_message)[:20000],
+                        redact_sensitive_text(user_message)[:20000],
+                        (
+                            redact_sensitive_text(suggested_action)[:20000]
+                            if suggested_action
+                            else None
+                        ),
                         recoverable,
-                        Json(json_safe(metadata or {})),
+                        Json(json_safe(redact_sensitive(metadata or {}))),
                         fingerprint,
                     ),
                 )
@@ -442,8 +447,8 @@ class CollectionCampaignStore:
                         state,
                         status_code,
                         content_hash,
-                        error[:5000] if error else None,
-                        Json(json_safe(metadata or {})),
+                        redact_sensitive_text(error)[:5000] if error else None,
+                        Json(json_safe(redact_sensitive(metadata or {}))),
                         terminal,
                         state,
                         self.campaign_id,
@@ -473,7 +478,7 @@ class CollectionCampaignStore:
                     (
                         status,
                         Json(json_safe(statistics)),
-                        error[:10000] if error else None,
+                        redact_sensitive_text(error)[:10000] if error else None,
                         self.campaign_id,
                     ),
                 )
@@ -516,8 +521,8 @@ class CollectionCampaignStore:
                         max(items, 0),
                         max(bytes_collected, 0),
                         latency_ms,
-                        error[:5000] if error else None,
-                        Json(json_safe(metadata or {})),
+                        redact_sensitive_text(error)[:5000] if error else None,
+                        Json(json_safe(redact_sensitive(metadata or {}))),
                     ),
                 )
                 conn.commit()
@@ -560,16 +565,41 @@ class SourceProfileStore:
         )
         parsed = urlsplit(canonical)
         if parsed.scheme in {"http", "https"} and parsed.netloc:
+            host = (parsed.hostname or "").casefold().rstrip(".")
+            known_public_hosts = {
+                "youtube.com",
+                "www.youtube.com",
+                "m.youtube.com",
+                "github.com",
+                "linkedin.com",
+                "www.linkedin.com",
+                "x.com",
+                "twitter.com",
+                "reddit.com",
+                "www.reddit.com",
+            }
+            scheme = "https" if host in known_public_hosts else parsed.scheme
+            netloc = host if host in known_public_hosts else parsed.netloc
             # Profile identity lives in the path; tracking and subscription
             # parameters otherwise create duplicate collection targets.
             return urlunsplit(
-                (parsed.scheme, parsed.netloc, parsed.path.rstrip("/") or "/", "", "")
+                (scheme, netloc, parsed.path.rstrip("/") or "/", "", "")
             )
         return canonical
 
     @classmethod
     def classify(cls, url: str) -> tuple[str, str] | None:
         parsed = urlsplit((url or "").strip())
+        if parsed.scheme.casefold() not in {"http", "https"} or not parsed.netloc:
+            return None
+        try:
+            unsafe_authority = bool(
+                parsed.username or parsed.password or parsed.port is not None
+            )
+        except ValueError:
+            return None
+        if unsafe_authority:
+            return None
         host = (parsed.hostname or "").casefold().removeprefix("www.")
         parts = [part for part in parsed.path.split("/") if part]
         if host in {"youtube.com", "m.youtube.com", "youtu.be"}:

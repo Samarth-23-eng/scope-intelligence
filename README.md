@@ -8,6 +8,8 @@
   <img alt="Python 3.12" src="https://img.shields.io/badge/Python-3.12-6fa8ef?style=flat-square&logo=python&logoColor=white">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111827?style=flat-square&logo=next.js&logoColor=white">
   <img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ed?style=flat-square&logo=docker&logoColor=white">
+  <img alt="Project status pre-alpha" src="https://img.shields.io/badge/status-pre--alpha-e5a44f?style=flat-square">
+  <img alt="Experimental research labs" src="https://img.shields.io/badge/labs-experimental-d96f6f?style=flat-square">
   <a href="./CONTRIBUTING.md"><img alt="Contributions welcome" src="https://img.shields.io/badge/contributions-welcome-8b7cf6?style=flat-square"></a>
 </p>
 
@@ -25,11 +27,31 @@
   <a href="./CONTRIBUTING.md">Contribute</a>
 </p>
 
+> [!CAUTION]
+> **Pre-alpha research software.** Scope Intelligence is an unfinished test
+> platform, not a production intelligence service. Social Collection Studio
+> and Deep Research Lab are **experimental** and may surface explicit, graphic,
+> sexual, violent, hateful, malicious, unlawful, false, or otherwise disturbing
+> public content. Results are not safety-vetted or verified. Use a disposable,
+> isolated local environment, minimize retention, and review every result before
+> relying on or sharing it.
+
 > [!IMPORTANT]
-> Scope Intelligence is an early open-source release intended for lawful
-> research using public sources. It does not bypass authentication, CAPTCHAs,
-> paywalls, or technical access controls. You are responsible for complying
-> with applicable law and source policies.
+> Scope is intended only for lawful, authorized research using public sources.
+> It does not bypass authentication, CAPTCHAs, paywalls, or technical access
+> controls. Operators are responsible for applicable law, source policies,
+> data protection, and safe handling of collected material.
+
+<table>
+  <tr>
+    <td><strong>Evidence first</strong><br><sub>Versioned sources, citations, provenance, and review state.</sub></td>
+    <td><strong>One model route</strong><br><sub>Encrypted BYOK for cloud, local, and compatible providers.</sub></td>
+  </tr>
+  <tr>
+    <td><strong>Relationship intelligence</strong><br><sub>Entities, corroboration, contradictions, paths, and graph change.</sub></td>
+    <td><strong>Self-hosted workspace</strong><br><sub>Local services, bounded collectors, inspectable runs, and operator control.</sub></td>
+  </tr>
+</table>
 
 ## Why Scope Intelligence?
 
@@ -54,6 +76,8 @@ name to a reviewable intelligence picture—not a black-box answer.
 | --- | --- |
 | Company discovery | Name-first identity resolution; a domain is helpful but not required |
 | Hybrid collection | HTTP and browser rendering, sitemaps, RSS/Atom, PDFs, public profiles, jobs, news, GitHub, and bounded YouTube metadata |
+| Social Collection Studio | **Experimental pre-alpha:** bounded YouTube channels, videos, transcripts, and public comments with normalized evidence |
+| Deep Research Lab | **Experimental pre-alpha:** opt-in, GET-only research over publicly reachable Tor hidden services |
 | Evidence foundation | Immutable document versions, chunks, lexical + vector retrieval, source health, and citation integrity |
 | AI research | Grounded summaries, signals, predictions, focused investigations, structured-output repair, and quality telemetry |
 | Relationship intelligence | Entity resolution, aliases, temporal observations, corroboration, contradictions, graph metrics, and evidence inspection |
@@ -62,6 +86,34 @@ name to a reviewable intelligence picture—not a black-box answer.
 | Situation timeline | Fused events, momentum, impact, verification state, and correlated developments |
 | Reports and alerts | PDF briefs plus optional email and Discord delivery |
 | Model gateway | OpenAI, OpenRouter, Anthropic, Gemini, Ollama, LM Studio, and custom OpenAI-compatible endpoints |
+
+## Experimental research labs
+
+The labs are deliberately separated from the normal collection pipeline and
+disabled or bounded by workspace controls. They are test features for local
+evaluation, not promises of accuracy, availability, or safety.
+
+### Social Collection Studio
+
+- Collects bounded public channel, video, transcript, and comment evidence.
+- Public comments and transcripts may contain explicit or disturbing material.
+- Commenter identity is minimized; collected material still requires human
+  review and responsible retention.
+
+### Deep Research Lab
+
+- Searches publicly reachable version-3 `.onion` services through an isolated
+  Tor container.
+- Uses GET-only requests with no authentication, form submission, uploads,
+  downloads, or arbitrary target URLs.
+- Treats every result as untrusted, low-confidence evidence requiring
+  corroboration.
+- May expose graphic, illegal, fraudulent, extremist, or otherwise harmful
+  material even when the research query is benign.
+
+Read [Experimental Labs](docs/EXPERIMENTAL_LABS.md),
+[Deep Research Lab](docs/DEEP_RESEARCH_LAB.md), and
+[Ethical Use](docs/ETHICAL_USE.md) before enabling either workflow.
 
 ## Quick start
 
@@ -105,7 +157,7 @@ CORS_ORIGINS=http://localhost:3200
 
 ### 3. Connect a model
 
-Open **Model connections** in the dashboard and choose a provider, base URL,
+Open **Settings > AI & agents** in the dashboard and choose a provider, base URL,
 model ID, and authentication method. Save and test the connection once; every
 AI agent will use that model.
 
@@ -118,6 +170,15 @@ and are never returned by the API. Headless installations can instead use the
 Enter a company, subsidiary, regional office, brand, or business unit. The
 discovery flow creates a name-first profile and expands through public evidence
 even when no official domain can be verified.
+
+### Optional: start the Deep Research Tor service
+
+Deep Research remains disabled by default. To test it locally, start the
+isolated service and then enable the lab under **Settings > Collection**:
+
+```bash
+docker compose --profile deep-research up -d tor
+```
 
 ## System architecture
 
@@ -234,10 +295,22 @@ public issue.
 
 ## Project status
 
-Scope Intelligence is under active development. The evidence model,
+Scope Intelligence is **pre-alpha** and under active development. The evidence model,
 relationship fusion, monitoring, verification, event timeline, and shared
 model gateway are implemented; multi-user authentication, export formats, and
-larger-scale deployment controls remain roadmap items.
+larger-scale deployment controls remain roadmap items. Experimental labs may
+change incompatibly or be removed while their safety and evidence quality are
+evaluated.
+
+## Inspiration and credits
+
+Deep Research Lab is inspired by the modular Tor search, scraping, and LLM
+investigation workflow in
+[Robin by Apurv Singh Gautam](https://github.com/apurvsinghgautam/robin).
+Robin is MIT licensed. Scope uses an original evidence-oriented implementation
+with explicit operator consent, bounded GET-only collection, structured
+diagnostics, and review-required provenance. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution details.
 
 ## License
 

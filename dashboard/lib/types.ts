@@ -180,6 +180,118 @@ export interface LLMConnectionUpdate {
   clear_secret?: boolean;
 }
 
+export interface WorkspacePreferences {
+  crawler_max_pages: number;
+  crawler_max_depth: number;
+  crawler_concurrency: number;
+  crawler_max_browser_fallbacks: number;
+  crawler_request_timeout_seconds: number;
+  crawler_retry_attempts: number;
+  crawler_respect_robots: boolean;
+  crawler_max_pdf_pages: number;
+  crawler_max_external_profiles: number;
+  enable_external_sources: boolean;
+  enable_job_scraper: boolean;
+  enable_linkedin_scraper: boolean;
+  job_sources: string;
+  job_results_wanted: number;
+  job_search_location: string;
+  job_hours_old: number;
+  youtube_max_videos: number;
+  youtube_comments_per_video: number;
+  enable_youtube_transcripts: boolean;
+  github_max_repositories: number;
+  github_releases_per_repository: number;
+  enable_social_collection: boolean;
+  social_max_items_per_run: number;
+  social_max_comments_per_item: number;
+  social_request_delay_seconds: number;
+  social_run_timeout_seconds: number;
+  social_youtube_retention_days: number;
+  enable_deep_research: boolean;
+  deep_research_max_results: number;
+  deep_research_max_pages: number;
+  deep_research_request_delay_seconds: number;
+  deep_research_timeout_seconds: number;
+}
+
+export interface WorkspaceSecretState {
+  configured: boolean;
+  source: 'saved' | 'environment' | 'missing';
+}
+
+export interface WorkspaceSettings {
+  preferences: WorkspacePreferences;
+  secrets: Record<'youtube_api_key' | 'github_token' | 'newsapi_key', WorkspaceSecretState>;
+  source: 'saved' | 'environment';
+  updated_at: string | null;
+  requires_restart: string[];
+}
+
+export type WorkspaceSettingsUpdate = Partial<WorkspacePreferences> & {
+  youtube_api_key?: string;
+  github_token?: string;
+  newsapi_key?: string;
+  clear_youtube_api_key?: boolean;
+  clear_github_token?: boolean;
+  clear_newsapi_key?: boolean;
+};
+
+export interface IntegrationTestResult {
+  ok: boolean;
+  integration: 'youtube' | 'github' | 'newsapi';
+  message: string;
+}
+
+export interface DeepResearchResult {
+  id: number;
+  run_id: number;
+  competitor_id: number;
+  engine: string;
+  source_url: string;
+  title: string | null;
+  excerpt: string | null;
+  fetch_status: 'discovered' | 'collected' | 'skipped' | 'failed';
+  http_status: number | null;
+  evidence_id: number | null;
+  metadata: Record<string, unknown>;
+  discovered_at: string;
+  collected_at: string | null;
+}
+
+export interface DeepResearchRun {
+  id: number;
+  competitor_id: number;
+  query: string;
+  status: 'queued' | 'running' | 'completed' | 'partial' | 'failed' | 'cancelled';
+  options: Record<string, unknown>;
+  checkpoint: {
+    stage?: string;
+    current?: number;
+    total?: number;
+    discovered?: number;
+    diagnostics?: Array<{ code: string; message: string; url_hash?: string }>;
+    engines?: Array<{ engine: string; ok: boolean; code?: string; results?: number; http_status?: number }>;
+  };
+  summary: Record<string, unknown>;
+  error: string | null;
+  cancel_requested_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  updated_at: string;
+  results?: DeepResearchResult[];
+}
+
+export interface DeepResearchOverview {
+  enabled: boolean;
+  experimental: true;
+  policy: string;
+  limits: { max_results: number; max_pages: number; timeout_seconds: number };
+  runs: DeepResearchRun[];
+  latest_run: DeepResearchRun | null;
+}
+
 export interface DiscoverResponse {
   competitor: Competitor;
   website: string | null;
@@ -633,6 +745,194 @@ export interface CollectionError {
   last_occurred_at: string;
   resolved_at: string | null;
   created_at: string;
+}
+
+export type SocialCollectionMode = 'discover' | 'account' | 'evidence';
+export type SocialRunStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'partial'
+  | 'failed'
+  | 'cancelled';
+
+export interface SocialConnector {
+  platform: string;
+  label: string;
+  version: string;
+  capabilities: string[];
+  modes: SocialCollectionMode[];
+  public_access: boolean;
+  api_key_configured: boolean;
+  comments_require_api_key: boolean;
+  warnings: string[];
+  readiness: 'ready' | 'needs_configuration' | 'disabled';
+  features: Record<string, 'ready' | 'needs_configuration' | 'disabled'>;
+}
+
+export interface SocialRunEvent {
+  id: number;
+  adapter_name: string;
+  event_type: string;
+  success: boolean;
+  items: number;
+  bytes_collected: number;
+  latency_ms: number | null;
+  error: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface SocialRun {
+  id: number;
+  competitor_id: number;
+  pipeline_run_id: number;
+  campaign_id: number;
+  platform: string;
+  mode: SocialCollectionMode;
+  query: string | null;
+  target_url: string | null;
+  connector_version: string;
+  options: {
+    max_items?: number;
+    include_comments?: boolean;
+    comment_limit?: number;
+    include_replies?: boolean;
+    max_reply_depth?: number;
+    include_transcript?: boolean;
+  };
+  checkpoint: {
+    stage?: string;
+    updated_at?: string;
+    current?: number;
+    total?: number;
+    video_id?: string;
+    comments?: number;
+    budget?: number;
+    persisted?: Record<string, number>;
+    diagnostics?: Array<{
+      code: string;
+      message: string;
+      severity: 'info' | 'warning' | 'error';
+      recoverable: boolean;
+      suggested_action?: string | null;
+    }>;
+  };
+  created_at: string;
+  updated_at: string;
+  status: SocialRunStatus;
+  summary: Record<string, unknown>;
+  statistics: Record<string, unknown>;
+  error: string | null;
+  cancel_requested_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  task_id: number | null;
+  task_status: string | null;
+  attempt: number | null;
+  heartbeat_at: string | null;
+  events?: SocialRunEvent[];
+}
+
+export interface SocialOverview {
+  competitor_id: number;
+  profiles: number;
+  posts: number;
+  comments: number;
+  observations: number;
+  refresh_due: number;
+  active_runs: number;
+  by_platform: Array<{ platform: string; posts: number }>;
+  last_completed_at: string | null;
+}
+
+export interface SocialCollectionInput {
+  platform: 'youtube';
+  mode: SocialCollectionMode;
+  target: string;
+  options: {
+    max_items: number;
+    include_comments: boolean;
+    comment_limit: number;
+    include_replies: boolean;
+    max_reply_depth: number;
+    include_transcript: boolean;
+  };
+}
+
+export interface SocialProfileRecord {
+  id: number;
+  competitor_id: number;
+  platform: string;
+  platform_profile_id: string;
+  handle: string | null;
+  display_name: string | null;
+  profile_url: string;
+  biography: string | null;
+  follower_count: number | null;
+  following_count: number | null;
+  content_count: number | null;
+  verified: boolean;
+  metadata: Record<string, unknown>;
+  evidence_id: number | null;
+  document_version_id: number | null;
+  refresh_due_at: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+}
+
+export interface SocialPostRecord {
+  id: number;
+  competitor_id: number;
+  profile_id: number | null;
+  first_seen_run_id: number | null;
+  latest_seen_run_id: number | null;
+  platform: string;
+  platform_post_id: string;
+  content_type: string;
+  url: string;
+  title: string | null;
+  body: string | null;
+  author_platform_id: string | null;
+  author_handle: string | null;
+  published_at: string | null;
+  language: string | null;
+  engagement: Record<string, number>;
+  media: Array<{
+    type?: string;
+    url?: string;
+    width?: number;
+    height?: number;
+  }>;
+  metadata: Record<string, unknown>;
+  evidence_id: number | null;
+  document_version_id: number | null;
+  refresh_due_at: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+}
+
+export interface SocialCommentRecord {
+  id: number;
+  competitor_id: number;
+  post_id: number;
+  first_seen_run_id: number | null;
+  latest_seen_run_id: number | null;
+  platform: string;
+  platform_comment_id: string;
+  parent_platform_comment_id: string | null;
+  thread_root_platform_comment_id: string | null;
+  depth: number;
+  text: string;
+  like_count: number;
+  reply_count: number;
+  published_at: string | null;
+  metadata: Record<string, unknown>;
+  evidence_id: number | null;
+  document_version_id: number | null;
+  refresh_due_at: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
 }
 
 export interface AccessRecoveryConfig {

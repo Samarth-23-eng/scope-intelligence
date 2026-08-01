@@ -39,13 +39,48 @@ import {
   LLMConnection,
   LLMConnectionUpdate,
   LLMProviderPresets,
+  SocialCollectionInput,
+  SocialCommentRecord,
+  SocialConnector,
+  SocialOverview,
+  SocialPostRecord,
+  SocialProfileRecord,
+  SocialRun,
+  WorkspaceSettings,
+  WorkspaceSettingsUpdate,
+  IntegrationTestResult,
+  DeepResearchOverview,
+  DeepResearchRun,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
 
 async function apiError(response: Response): Promise<Error> {
-  const payload = await response.json().catch(() => null) as { detail?: string } | null;
-  return new Error(payload?.detail ?? `API error: ${response.status} ${response.statusText}`);
+  const payload = await response.json().catch(() => null) as {
+    detail?:
+      | string
+      | {
+          code?: string;
+          message?: string;
+          suggested_action?: string | null;
+          recoverable?: boolean;
+        };
+  } | null;
+  const detail = payload?.detail;
+  if (detail && typeof detail === 'object') {
+    const message = detail.message ?? `API error: ${response.status} ${response.statusText}`;
+    const code = detail.code ? `[${detail.code}] ` : '';
+    const action = detail.suggested_action ? ` ${detail.suggested_action}` : '';
+    const error = new Error(`${code}${message}${action}`.trim());
+    Object.assign(error, {
+      code: detail.code,
+      suggestedAction: detail.suggested_action,
+      recoverable: detail.recoverable,
+      status: response.status,
+    });
+    return error;
+  }
+  return new Error(detail ?? `API error: ${response.status} ${response.statusText}`);
 }
 
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -178,6 +213,63 @@ export async function resetLLMConnection(): Promise<{
   connection: LLMConnection;
 }> {
   return fetchAPI('/settings/llm', { method: 'DELETE' });
+}
+
+export async function getWorkspaceSettings(): Promise<WorkspaceSettings> {
+  return fetchAPI<WorkspaceSettings>('/settings/workspace');
+}
+
+export async function saveWorkspaceSettings(
+  data: WorkspaceSettingsUpdate,
+): Promise<WorkspaceSettings> {
+  return fetchAPI<WorkspaceSettings>('/settings/workspace', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function resetWorkspaceSettings(): Promise<{
+  status: 'reset';
+  settings: WorkspaceSettings;
+}> {
+  return fetchAPI('/settings/workspace', { method: 'DELETE' });
+}
+
+export async function testWorkspaceIntegration(
+  integration: 'youtube' | 'github' | 'newsapi',
+): Promise<IntegrationTestResult> {
+  return fetchAPI<IntegrationTestResult>(
+    `/settings/workspace/integrations/${integration}/test`,
+    { method: 'POST' },
+  );
+}
+
+export async function getDeepResearchOverview(id: number): Promise<DeepResearchOverview> {
+  return fetchAPI<DeepResearchOverview>(`/competitors/${id}/deep-research/overview`);
+}
+
+export async function getDeepResearchRun(id: number, runId: number): Promise<DeepResearchRun> {
+  return fetchAPI<DeepResearchRun>(`/competitors/${id}/deep-research/runs/${runId}`);
+}
+
+export async function createDeepResearchRun(id: number, input: {
+  query?: string;
+  max_results: number;
+  max_pages: number;
+  acknowledge_authorized_use: boolean;
+}): Promise<DeepResearchRun> {
+  return fetchAPI<DeepResearchRun>(`/competitors/${id}/deep-research/runs`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelDeepResearchRun(id: number, runId: number): Promise<DeepResearchRun> {
+  return fetchAPI<DeepResearchRun>(`/competitors/${id}/deep-research/runs/${runId}/cancel`, { method: 'POST' });
+}
+
+export async function testTorConnection(id: number): Promise<{ ok: boolean; message: string }> {
+  return fetchAPI(`/competitors/${id}/deep-research/tor/test`, { method: 'POST' });
 }
 
 export async function discoverCompany(name: string): Promise<DiscoverResponse> {
@@ -420,6 +512,82 @@ export async function updateSourceProfile(
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
+}
+
+// Social Collection Studio
+export async function getSocialOverview(id: number): Promise<SocialOverview> {
+  return fetchAPI<SocialOverview>(`/competitors/${id}/social/overview`);
+}
+
+export async function getSocialConnectors(id: number): Promise<SocialConnector[]> {
+  return fetchAPI<SocialConnector[]>(`/competitors/${id}/social/connectors`);
+}
+
+export async function createSocialRun(
+  id: number,
+  input: SocialCollectionInput,
+): Promise<SocialRun> {
+  return fetchAPI<SocialRun>(`/competitors/${id}/social/runs`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getSocialRuns(
+  id: number,
+  limit = 30,
+): Promise<SocialRun[]> {
+  return fetchAPI<SocialRun[]>(`/competitors/${id}/social/runs?limit=${limit}`);
+}
+
+export async function getSocialRun(
+  id: number,
+  socialRunId: number,
+): Promise<SocialRun> {
+  return fetchAPI<SocialRun>(`/competitors/${id}/social/runs/${socialRunId}`);
+}
+
+export async function cancelSocialRun(
+  id: number,
+  socialRunId: number,
+): Promise<SocialRun> {
+  return fetchAPI<SocialRun>(
+    `/competitors/${id}/social/runs/${socialRunId}/cancel`,
+    { method: 'POST' },
+  );
+}
+
+export async function getSocialProfiles(
+  id: number,
+  runId?: number,
+): Promise<SocialProfileRecord[]> {
+  const params = new URLSearchParams({ kind: 'profile', limit: '100' });
+  if (runId) params.set('run_id', String(runId));
+  return fetchAPI<SocialProfileRecord[]>(
+    `/competitors/${id}/social/records?${params}`,
+  );
+}
+
+export async function getSocialPosts(
+  id: number,
+  runId?: number,
+): Promise<SocialPostRecord[]> {
+  const params = new URLSearchParams({ kind: 'post', limit: '100' });
+  if (runId) params.set('run_id', String(runId));
+  return fetchAPI<SocialPostRecord[]>(
+    `/competitors/${id}/social/records?${params}`,
+  );
+}
+
+export async function getSocialComments(
+  id: number,
+  runId?: number,
+): Promise<SocialCommentRecord[]> {
+  const params = new URLSearchParams({ kind: 'comment', limit: '200' });
+  if (runId) params.set('run_id', String(runId));
+  return fetchAPI<SocialCommentRecord[]>(
+    `/competitors/${id}/social/records?${params}`,
+  );
 }
 
 export async function deletePipelineData(id: number): Promise<PipelineDataDeleteResponse> {

@@ -28,6 +28,20 @@ services:
       timeout: 5s
       retries: 5
 
+  tor:
+    build:
+      context: .
+      dockerfile: Dockerfile.tor
+    profiles: ["deep-research"]
+    volumes:
+      - tor_data:/var/lib/tor
+    healthcheck:
+      test: ["CMD-SHELL", "test -S /var/run/tor/socks || test -f /var/lib/tor/state"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   api:
     build: .
     env_file: .env
@@ -37,6 +51,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       RUNNING_IN_DOCKER: "true"
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      TOR_SOCKS_PROXY_URL: ${TOR_SOCKS_PROXY_URL:-socks5h://tor:9050}
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,3 +96,4 @@ volumes:
   model_cache:
   llm_secrets:
   reports_data:
+  tor_data:

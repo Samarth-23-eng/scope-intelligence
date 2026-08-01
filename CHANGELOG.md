@@ -7,6 +7,15 @@ versioning where practical.
 
 ### Added
 
+- Experimental pre-alpha Social Collection Studio with bounded YouTube channel,
+  video, transcript, and public-comment evidence capture.
+- Experimental pre-alpha Deep Research Lab with isolated Tor routing, multiple
+  hidden-service search engines, GET-only collection, strict budgets, explicit
+  operator acknowledgement, and review-required evidence.
+- A multi-page Settings hub for AI routing, collection budgets, and encrypted
+  connector credentials.
+- Prominent experimental-content warnings, Deep Research operating guidance,
+  and attribution to Robin by Apurv Singh Gautam.
 - Public open-source governance, contribution, support, security, and issue
   workflows.
 - Provider-neutral shared LLM gateway with encrypted BYOK storage.

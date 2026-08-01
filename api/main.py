@@ -23,12 +23,16 @@ from db.postgres import get_connection, run_migrations, close_pool, get_pool
 from db.redis_client import get_client as get_redis_client, close_client as close_redis_client
 from api.graph_routes import router as graph_router
 from api.report_routes import router as report_router
+from api.social_routes import router as social_router
+from api.settings_routes import router as settings_router
+from api.deep_research_routes import router as deep_research_router
 from intelligence.foundation import RunTracker
 from intelligence.retrieval import ChunkIndexer, EvidenceRetriever
 from intelligence.collection import CollectionAccessPolicyStore, SourceProfileStore
 from intelligence.events import EventFusionEngine
 from intelligence.monitoring import MonitoringStore
 from intelligence.verification import ClaimVerificationEngine
+from intelligence.workspace_settings import WorkspaceSettingsStore
 from llm_gateway import (
     LLMConnectionStore,
     LLMProviderError,
@@ -51,6 +55,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Scope Intelligence API...")
     if not run_migrations():
         raise RuntimeError("Database migrations failed")
+    WorkspaceSettingsStore.apply_to_runtime()
     get_pool()
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -71,6 +76,20 @@ async def lifespan(app: FastAPI):
                     completed_at = COALESCE(completed_at, NOW())
                 WHERE status IN ('pending', 'running', 'retrying')
                   AND run_id IN (
+                      SELECT id
+                      FROM pipeline_runs
+                      WHERE status IN ('queued', 'running')
+                  )
+                """
+            )
+            cur.execute(
+                """
+                UPDATE collection_campaigns
+                SET status = 'partial',
+                    error = COALESCE(error, 'Interrupted by API restart'),
+                    completed_at = COALESCE(completed_at, NOW())
+                WHERE status IN ('queued', 'running')
+                  AND pipeline_run_id IN (
                       SELECT id
                       FROM pipeline_runs
                       WHERE status IN ('queued', 'running')
@@ -118,6 +137,9 @@ app = FastAPI(
 # Include report routes
 app.include_router(report_router)
 app.include_router(graph_router)
+app.include_router(social_router)
+app.include_router(settings_router)
+app.include_router(deep_research_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -2887,6 +2909,24 @@ async def register_source_profile(
                 status_code=422,
                 detail="Choose a source type for this URL",
             )
+        provider_types = {"youtube", "github", "linkedin", "x", "reddit"}
+        if source_type in provider_types and (
+            not classified or classified[0] != source_type
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "source_url_mismatch",
+                    "message": (
+                        f"The supplied URL is not a canonical {source_type} profile."
+                    ),
+                    "suggested_action": (
+                        "Use the public profile URL from the selected platform "
+                        "without credentials or a custom port."
+                    ),
+                    "recoverable": True,
+                },
+            )
         profile_id = SourceProfileStore(competitor_id).discover(
             source_type=source_type,
             profile_url=request.profile_url,
@@ -3254,7 +3294,8 @@ async def delete_competitor_pipeline_data(competitor_id: int):
                     """
                     SELECT id
                     FROM pipeline_runs
-                    WHERE competitor_id = %s AND status = 'running'
+                    WHERE competitor_id = %s
+                      AND status IN ('queued', 'running')
                     LIMIT 1
                     """,
                     (competitor_id,),
@@ -3263,6 +3304,22 @@ async def delete_competitor_pipeline_data(competitor_id: int):
                     raise HTTPException(
                         status_code=409,
                         detail="Wait for the active pipeline before deleting its data",
+                    )
+
+                cur.execute(
+                    """
+                    SELECT id
+                    FROM deep_research_runs
+                    WHERE competitor_id = %s
+                      AND status IN ('queued', 'running')
+                    LIMIT 1
+                    """,
+                    (competitor_id,),
+                )
+                if cur.fetchone():
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Cancel the active Deep Research run before deleting its data",
                     )
 
                 deleted["qdrant_points"] = ChunkIndexer.delete_competitor(competitor_id)
@@ -3280,6 +3337,13 @@ async def delete_competitor_pipeline_data(competitor_id: int):
                 deleted["relationships"] = int(cur.fetchone()["count"])
 
                 for table in (
+                    "deep_research_results",
+                    "deep_research_runs",
+                    "social_observations",
+                    "social_comments",
+                    "social_posts",
+                    "social_profiles",
+                    "social_collection_runs",
                     "intelligence_events",
                     "page_changes",
                     "page_snapshots",

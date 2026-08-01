@@ -22,6 +22,9 @@ def test_migrations_are_numbered_and_ordered():
         "015_agent_output_quality_v13.sql",
         "016_llm_gateway_v14.sql",
         "017_graph_studio_v15.sql",
+        "018_social_collection_studio_v16.sql",
+        "019_workspace_settings_v17.sql",
+        "020_deep_research_lab_v18.sql",
     ]
 
 
@@ -216,3 +219,45 @@ def test_llm_gateway_migration_keeps_credentials_encrypted():
     assert "api_key TEXT" not in gateway_sql
     assert "CHECK (id = 1)" in gateway_sql
     assert "DROP TABLE" not in gateway_sql.upper()
+
+
+def test_social_collection_migration_is_normalized_and_evidence_backed():
+    social_sql = get_migration_files()[17].read_text(encoding="utf-8")
+
+    for table in (
+        "social_collection_runs",
+        "social_profiles",
+        "social_posts",
+        "social_comments",
+        "social_observations",
+    ):
+        assert f"CREATE TABLE IF NOT EXISTS {table}" in social_sql
+    assert "REFERENCES evidence(id)" in social_sql
+    assert "REFERENCES document_versions(id)" in social_sql
+    assert "refresh_due_at TIMESTAMPTZ" in social_sql
+    assert "identity_retained" not in social_sql
+    assert "DROP TABLE" not in social_sql.upper()
+
+
+def test_workspace_settings_migration_keeps_connector_secrets_encrypted():
+    settings_sql = get_migration_files()[18].read_text(encoding="utf-8")
+
+    assert "CREATE TABLE IF NOT EXISTS workspace_configuration" in settings_sql
+    assert "preferences JSONB" in settings_sql
+    assert "secret_ciphertexts JSONB" in settings_sql
+    assert "Plaintext credentials are never stored" in settings_sql
+    assert "api_key TEXT" not in settings_sql
+    assert "github_token TEXT" not in settings_sql
+    assert "CHECK (id = 1)" in settings_sql
+    assert "DROP TABLE" not in settings_sql.upper()
+
+
+def test_deep_research_migration_is_bounded_and_evidence_backed():
+    deep_sql = get_migration_files()[19].read_text(encoding="utf-8")
+
+    assert "CREATE TABLE IF NOT EXISTS deep_research_runs" in deep_sql
+    assert "CREATE TABLE IF NOT EXISTS deep_research_results" in deep_sql
+    assert "REFERENCES evidence(id)" in deep_sql
+    assert "idx_deep_research_one_active_run" in deep_sql
+    assert "authentication material must never be stored" in deep_sql
+    assert "DROP TABLE" not in deep_sql.upper()

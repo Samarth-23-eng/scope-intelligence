@@ -9,7 +9,7 @@ const navigation: Array<{ label: string; href: string; icon: IconName }> = [
   { label: 'Portfolio', href: '/', icon: 'grid' },
   { label: 'Companies', href: '/#watchlist', icon: 'building' },
   { label: 'Start investigation', href: '/#discovery', icon: 'search' },
-  { label: 'Model connections', href: '/settings/models', icon: 'settings' },
+  { label: 'Settings', href: '/settings', icon: 'settings' },
 ];
 
 const sectionNames: Record<string, string> = {
@@ -17,18 +17,22 @@ const sectionNames: Record<string, string> = {
   research: 'Research',
   evidence: 'Evidence',
   relationships: 'Relationships',
+  collection: 'Collection Studio',
   reports: 'Reports',
   operations: 'Operations',
+  settings: 'Settings',
+  models: 'AI & agents',
+  integrations: 'Integrations',
 };
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isCompany = pathname.startsWith('/competitors/');
-  const isModelSettings = pathname === '/settings/models';
+  const isSettings = pathname.startsWith('/settings');
   const section =
     Object.entries(sectionNames).find(([segment]) => pathname.endsWith(`/${segment}`))?.[1] ??
-    (isCompany ? 'Briefing' : isModelSettings ? 'Model connections' : 'Portfolio');
+    (isCompany ? 'Briefing' : isSettings ? 'Settings' : 'Portfolio');
 
   return (
     <div className="app-shell">
@@ -56,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {navigation.map((item) => {
             const active =
               (item.href === '/' && pathname === '/') ||
-              (item.href === '/settings/models' && isModelSettings);
+              (item.href === '/settings' && isSettings);
             return (
               <Link
                 key={item.label}
@@ -97,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Icon name="menu" size={19} />
             </button>
             <div className="workspace-breadcrumb">
-              <span>{isCompany ? 'Company dossier' : isModelSettings ? 'Workspace settings' : 'Intelligence portfolio'}</span>
+              <span>{isCompany ? 'Company dossier' : isSettings ? 'Workspace settings' : 'Intelligence portfolio'}</span>
               <Icon name="arrow" size={12} />
               <strong>{section}</strong>
             </div>

@@ -76,6 +76,20 @@ class Settings(BaseSettings):
     github_token: str | None = Field(default=None, repr=False)
     github_max_repositories: int = 20
     github_releases_per_repository: int = 3
+    enable_social_collection: bool = True
+    social_max_items_per_run: int = 50
+    social_max_comments_per_item: int = 200
+    social_max_reply_depth: int = 1
+    social_request_delay_seconds: float = 0.25
+    social_run_timeout_seconds: float = 900.0
+    social_youtube_retention_days: int = 30
+    enable_deep_research: bool = False
+    tor_socks_proxy_url: str = "socks5h://tor:9050"
+    deep_research_max_results: int = 30
+    deep_research_max_pages: int = 12
+    deep_research_request_delay_seconds: float = 1.0
+    deep_research_timeout_seconds: float = 600.0
+    deep_research_max_content_bytes: int = 1000000
 
     @property
     def allowed_origins(self) -> list[str]:
