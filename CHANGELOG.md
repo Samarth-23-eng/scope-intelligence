@@ -21,6 +21,11 @@ versioning where practical.
 - Provider-neutral shared LLM gateway with encrypted BYOK storage.
 - Model Connections dashboard for cloud, local, and OpenAI-compatible models.
 
+### Security
+
+- Upgraded Requests to 2.33.0 to resolve PYSEC-2026-2275, an insecure temporary
+  file reuse issue in ZIP extraction.
+
 ## [0.1.1] — 2026-07-29
 
 ### Security
