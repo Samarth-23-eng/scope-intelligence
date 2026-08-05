@@ -23,6 +23,12 @@ versioning where practical.
 
 ### Security
 
+- Upgraded Cryptography to 50.0.0 to resolve the PKCS#7 oracle and related
+  upstream advisories reported against 48.0.1.
+- Upgraded the vulnerable Brace Expansion override to 5.0.9 and refreshed the
+  GitHub Actions runtimes used by CI, secret scanning, and CodeQL.
+- Removed user-controlled filename construction from report filesystem access;
+  downloads now select canonical files from the trusted report directory.
 - Upgraded Requests to 2.33.0 to resolve PYSEC-2026-2275, an insecure temporary
   file reuse issue in ZIP extraction.
 

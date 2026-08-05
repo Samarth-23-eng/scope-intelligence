@@ -45,24 +45,45 @@ def secure_report_path(
     path_value: str | os.PathLike[str],
     *,
     competitor_id: int | None = None,
-    require_exists: bool = True,
 ) -> Path | None:
-    """Return a report path only when it is a valid file inside REPORTS_ROOT."""
+    """Select an existing report from the trusted directory by canonical name.
+
+    The caller-provided value is used only for an equality comparison against
+    directory entries. It is never joined to the report root or passed to a
+    filesystem API as a path.
+    """
     filename = Path(os.fspath(path_value)).name
     match = REPORT_FILENAME_PATTERN.fullmatch(filename)
     if not match:
         return None
-    if (
-        competitor_id is not None
-        and int(match.group("competitor_id")) != int(competitor_id)
-    ):
+    parsed_competitor_id = int(match.group("competitor_id"))
+    if competitor_id is not None and parsed_competitor_id != int(competitor_id):
         return None
 
-    candidate = (REPORTS_ROOT / filename).resolve()
+    try:
+        for entry in REPORTS_ROOT.iterdir():
+            if entry.name != filename:
+                continue
+            candidate = entry.resolve()
+            if candidate.parent != REPORTS_ROOT or not candidate.is_file():
+                return None
+            return candidate
+    except OSError as exc:
+        logger.warning("Could not inspect the report directory: %s", exc)
+    return None
+
+
+def _new_report_path(competitor_id: int, generated_at: datetime) -> Path:
+    """Construct a new canonical path exclusively from typed server values."""
+    safe_competitor_id = int(competitor_id)
+    if safe_competitor_id < 1:
+        raise ValueError("competitor_id must be positive")
+    timestamp = generated_at.strftime("%Y%m%d_%H%M%S")
+    candidate = (
+        REPORTS_ROOT / f"competitor_{safe_competitor_id}_{timestamp}.pdf"
+    ).resolve()
     if candidate.parent != REPORTS_ROOT:
-        return None
-    if require_exists and not candidate.is_file():
-        return None
+        raise ValueError("report path escaped the report directory")
     return candidate
 
 
@@ -567,17 +588,8 @@ def generate_competitor_report(competitor_id: int) -> Optional[str]:
         relationships = _get_relationships(competitor_id)
         
         # Generate filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_competitor_id = int(competitor["id"])
-        filename = f"competitor_{safe_competitor_id}_{timestamp}.pdf"
-        output_path = secure_report_path(
-            filename,
-            competitor_id=safe_competitor_id,
-            require_exists=False,
-        )
-        if output_path is None:
-            logger.error("Could not construct a safe report path")
-            return None
+        output_path = _new_report_path(safe_competitor_id, datetime.now())
         
         # Build PDF
         result_path = _build_pdf(
