@@ -3,7 +3,7 @@ beautifulsoup4==4.12.3
 httpx==0.27.0
 requests[socks]==2.33.0
 curl_cffi==0.15.0
-pypdf==6.14.2
+pypdf==6.16.1
 # PyPI 1.1.82 pins a vulnerable Markdownify release. This immutable upstream
 # archive keeps the same JobSpy code line while accepting patched Markdownify.
 python-jobspy @ https://github.com/speedyapply/JobSpy/archive/fda080a373e8226f3fd60635323f5da9af9892b1.zip
